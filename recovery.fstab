@@ -1,0 +1,61 @@
+# recovery.fstab — TALIH-PD2 (ls12_mt8797_wifi_64)
+# 依据设备实测 /dev/block/by-name 分区表修正（旧模板中的 tee1/lk2/sspm_1/md1img/odmdtbo
+# 等条目在本机不存在 —— 真实分区为 A/B 后缀命名：tee_a/b、lk_a/b、sspm_a/b、dtbo_a/b）。
+# slotselect 条目由 TWRP 运行时按当前槽位自动追加 _a/_b 后缀。
+
+# 动态分区（super 内，logical）
+/system                   ext4     system                                                 flags=display=system;logical;slotselect
+/vendor                   ext4     vendor                                                 flags=display=vendor;logical;slotselect
+/product                 ext4     product                                                flags=display=product;logical;slotselect
+
+# 用户数据（f2fs + FBE v2，与原厂 first_stage fstab 一致）
+/data                     f2fs     /dev/block/by-name/userdata                            flags=display=data
+/metadata                 ext4     /dev/block/by-name/metadata                            flags=display=metadata
+
+# MTK 专用分区
+/mnt/vendor/protect_f     ext4     /dev/block/by-name/protect1                           flags=display=protect_f
+/mnt/vendor/protect_s     ext4     /dev/block/by-name/protect2                           flags=display=protect_s
+/mnt/vendor/nvdata        ext4     /dev/block/by-name/nvdata                              flags=display=nvdata
+/mnt/vendor/nvcfg         ext4     /dev/block/by-name/nvcfg                               flags=display=nvcfg
+/mnt/vendor/persist        ext4     /dev/block/by-name/persist                             flags=display=persist
+/mnt/oempersist           ext4     /dev/block/by-name/oempersist                          flags=display=oempersist
+
+# 引导链（A/B，slotselect）
+/boot                     emmc     /dev/block/by-name/boot                                flags=display=boot;slotselect
+/dtbo                     emmc     /dev/block/by-name/dtbo                                flags=display=dtbo;slotselect
+/init_boot                emmc     /dev/block/by-name/init_boot                           flags=display=init_boot;slotselect
+/vendor_boot              emmc     /dev/block/by-name/vendor_boot                         flags=display=vendor_boot;slotselect
+/vbmeta                   emmc     /dev/block/by-name/vbmeta                              flags=display=vbmeta;slotselect
+/vbmeta_system            emmc     /dev/block/by-name/vbmeta_system                       flags=display=vbmeta_system;slotselect
+/vbmeta_vendor            emmc     /dev/block/by-name/vbmeta_vendor                       flags=display=vbmeta_vendor;slotselect
+/bootloader               emmc     /dev/block/by-name/lk                                  flags=display=bootloader;slotselect
+/logo                     emmc     /dev/block/by-name/logo                                flags=display=logo;slotselect
+/tee                      emmc     /dev/block/by-name/tee                                flags=display=tee;slotselect
+/gz                        emmc     /dev/block/by-name/gz                                 flags=display=gz;slotselect
+/scp                      emmc     /dev/block/by-name/scp                                flags=display=scp;slotselect
+/sspm                     emmc     /dev/block/by-name/sspm                               flags=display=sspm;slotselect
+/mcupm                    emmc     /dev/block/by-name/mcupm                              flags=display=mcupm;slotselect
+/dpm                       emmc     /dev/block/by-name/dpm                                flags=display=dpm;slotselect
+/spmfw                    emmc     /dev/block/by-name/spmfw                              flags=display=spmfw;slotselect
+/pi_img                    emmc     /dev/block/by-name/pi_img                             flags=display=pi_img;slotselect
+/cam_vpu1                  emmc     /dev/block/by-name/cam_vpu1                           flags=display=cam_vpu1;slotselect
+/cam_vpu2                  emmc     /dev/block/by-name/cam_vpu2                           flags=display=cam_vpu2;slotselect
+/cam_vpu3                  emmc     /dev/block/by-name/cam_vpu3                           flags=display=cam_vpu3;slotselect
+
+# 非 A/B 的 MTK 分区
+/persistent               emmc     /dev/block/by-name/frp                                 flags=display=persistent
+/nvram                     emmc     /dev/block/by-name/nvram                              flags=display=nvram
+/proinfo                   emmc     /dev/block/by-name/proinfo                            flags=display=proinfo
+/seccfg                    emmc     /dev/block/by-name/seccfg                             flags=display=seccfg
+/expdb                     emmc     /dev/block/by-name/expdb                              flags=display=expdb
+/boot_para                 emmc     /dev/block/by-name/boot_para                          flags=display=boot_para
+/misc                      emmc     /dev/block/by-name/misc                               flags=display=misc
+/otp                       emmc     /dev/block/by-name/otp                                flags=display=otp
+/flashinfo                 emmc     /dev/block/by-name/flashinfo                          flags=display=flashinfo
+/tal_sec                   emmc     /dev/block/by-name/tal_sec                             flags=display=tal_sec
+
+# 外置存储
+auto                       auto     /devices/platform/externdevice*                        flags=display=auto
+auto                       vfat     /devices/platform/usb_xhci*                           flags=display=auto
+auto                       vfat     /devices/platform/soc/11201000.usb0/11200000.xhci*     flags=display=auto
+auto                       vfat     /devices/platform/usb0/11200000.xhci*                  flags=display=auto

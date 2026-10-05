@@ -1,0 +1,109 @@
+name: Build TWRP (recovery-as-boot)
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore: [ '**.md' ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo add-apt-repository -y universe || true
+          sudo apt-get update
+          sudo apt-get install -y git-core gnupg flex bison gperf build-essential zip curl \
+            zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev \
+            x11proto-core-dev libx11-dev lib32z-dev libgl1-mesa-dev \
+            libxml2-utils xsltproc unzip python3 python-is-python3 libssl-dev rsync \
+            libncurses5 cpio || true
+          git config --global user.email "you@example.com"
+          git config --global user.name "CI"
+          mkdir -p ~/bin
+          curl -sL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
+          chmod a+x ~/bin/repo
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Sync TWRP source (twrp-12.1)
+        run: |
+          mkdir -p ~/twrpsrc && cd ~/twrpsrc
+          ~/bin/repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
+          ~/bin/repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+        timeout-minutes: 150
+
+      - name: Install device tree
+        run: |
+          mkdir -p ~/twrpsrc/device/alps
+          cp -r $GITHUB_WORKSPACE ~/twrpsrc/device/alps/ls12_mt8797_wifi_64
+          # recovery ramdisk 打包时 root/{vendor,product,system_ext,odm} 符号链接
+          # 与安装到 recovery/root 的内容冲突；从 rsync 排除这些顶层符号链接
+          # （TWRP 挂载分区无影响）
+          sed -i 's|rsync -a --exclude=sdcard|rsync -a --exclude=sdcard --exclude=/root/vendor --exclude=/root/product --exclude=/root/system_ext --exclude=/root/odm|' \
+            ~/twrpsrc/build/make/core/Makefile
+          grep -n "rsync -a --exclude=sdcard" ~/twrpsrc/build/make/core/Makefile | head -2
+          ls -la ~/twrpsrc/device/alps/ls12_mt8797_wifi_64
+
+      - name: Build recovery image
+        run: |
+          cd ~/twrpsrc
+          export ALLOW_MISSING_DEPENDENCIES=true
+          export LC_ALL=C
+          . build/envsetup.sh
+          lunch omni_ls12_mt8797_wifi_64-eng
+          mka bootimage recoveryimage -j$(nproc --all)
+        timeout-minutes: 150
+
+      - name: Assemble boot image (MTK LK layout)
+        run: |
+          cd ~/twrpsrc
+          ls -la out/target/product/ls12_mt8797_wifi_64/ | grep -E "recovery|ramdisk|boot"
+          DT=out/target/product/ls12_mt8797_wifi_64
+          DEVICE=device/alps/ls12_mt8797_wifi_64
+          out/host/linux-x86/bin/mkbootimg \
+            --kernel $DEVICE/prebuilt/Image.gz \
+            --ramdisk $DT/ramdisk-recovery.img \
+            --base 0x40000000 --kernel_offset 0x00080000 \
+            --ramdisk_offset 0x11100000 --tags_offset 0x07c80000 \
+            --header_version 2 --pagesize 2048 \
+            --cmdline "bootopt=64S3,32N2,64N2 buildvariant=user" \
+            --os_version 12.0.0 --os_patch_level 2023-06 \
+            --output $GITHUB_WORKSPACE/boot-twrp.img
+          # 原厂布局: header dtb_size=0, dtb.img (DTBO 容器) 追加在 ramdisk
+          # 页对齐偏移之后, 并填充到 boot 分区大小 64MiB (dd 刷写安全)
+          python3 - <<'EOF'
+          import os, struct
+          ws = os.environ['GITHUB_WORKSPACE']
+          src = os.path.join(ws, 'boot-twrp.img')
+          boot = open(src,'rb').read()
+          magic, kernel_size = boot[0:8], struct.unpack('<I', boot[8:12])[0]
+          ramdisk_size = struct.unpack('<I', boot[16:20])[0]
+          page = struct.unpack('<I', boot[36:40])[0]
+          assert magic == b'ANDROID!', 'bad mkbootimg output'
+          dtb = open(os.path.join(ws, 'prebuilt/dtb.img'),'rb').read()
+          end = page * (1 + (kernel_size + page - 1)//page + (ramdisk_size + page - 1)//page)
+          assert end <= len(boot), 'unexpected mkbootimg layout'
+          out = boot[:end] + dtb
+          part = 67108864
+          assert len(out) <= part, 'image exceeds boot partition'
+          out += b'\0' * (part - len(out))
+          open(src,'wb').write(out)
+          print(f'assembled: kernel={kernel_size} ramdisk={ramdisk_size} dtb={len(dtb)} total={len(out)}')
+          EOF
+          # 保留 AOSP 构建直出的 recovery.img (BOARD_USES_RECOVERY_AS_BOOT) 供对比
+          cp $DT/recovery.img $GITHUB_WORKSPACE/recovery.img 2>/dev/null || true
+          ls -la $GITHUB_WORKSPACE/boot-twrp.img $GITHUB_WORKSPACE/recovery.img || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: twrp-ls12_mt8797_wifi_64
+          path: |
+            boot-twrp.img
+            recovery.img
+          retention-days: 14
+          if-no-files-found: error
