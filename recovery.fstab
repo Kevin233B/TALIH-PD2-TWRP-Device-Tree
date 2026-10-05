@@ -1,61 +1,49 @@
-# recovery.fstab — TALIH-PD2 (ls12_mt8797_wifi_64)
-# 依据设备实测 /dev/block/by-name 分区表修正（旧模板中的 tee1/lk2/sspm_1/md1img/odmdtbo
-# 等条目在本机不存在 —— 真实分区为 A/B 后缀命名：tee_a/b、lk_a/b、sspm_a/b、dtbo_a/b）。
-# slotselect 条目由 TWRP 运行时按当前槽位自动追加 _a/_b 后缀。
+# TALIH-PD2 (ls12_mt8797_wifi_64)
+# All mounts are read-only: no formattable / wipeingui / flashimg anywhere.
 
-# 动态分区（super 内，logical）
-/system                   ext4     system                                                 flags=display=system;logical;slotselect
-/vendor                   ext4     vendor                                                 flags=display=vendor;logical;slotselect
-/product                 ext4     product                                                flags=display=product;logical;slotselect
+system                                     /system          ext4    ro,noatime                                               wait,slotselect,logical
+vendor                                     /vendor          ext4    ro,noatime                                               wait,slotselect,logical
+product                                    /product         ext4    ro,noatime                                               wait,slotselect,logical
 
-# 用户数据（f2fs + FBE v2，与原厂 first_stage fstab 一致）
-/data                     f2fs     /dev/block/by-name/userdata                            flags=display=data
-/metadata                 ext4     /dev/block/by-name/metadata                            flags=display=metadata
+/dev/block/by-name/userdata                /data            f2fs    ro,noatime,nosuid,nodev,discard,noflush_merge,fsync_mode=nobarrier,reserve_root=134217,resgid=1065,inlinecrypt    wait,latemount,checkpoint=fs,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,keydirectory=/metadata/vold/metadata_encryption
 
-# MTK 专用分区
-/mnt/vendor/protect_f     ext4     /dev/block/by-name/protect1                           flags=display=protect_f
-/mnt/vendor/protect_s     ext4     /dev/block/by-name/protect2                           flags=display=protect_s
-/mnt/vendor/nvdata        ext4     /dev/block/by-name/nvdata                              flags=display=nvdata
-/mnt/vendor/nvcfg         ext4     /dev/block/by-name/nvcfg                               flags=display=nvcfg
-/mnt/vendor/persist        ext4     /dev/block/by-name/persist                             flags=display=persist
-/mnt/oempersist           ext4     /dev/block/by-name/oempersist                          flags=display=oempersist
+/dev/block/by-name/metadata                /metadata        ext4    ro,noatime,nosuid,nodev                                  wait
 
-# 引导链（A/B，slotselect）
-/boot                     emmc     /dev/block/by-name/boot                                flags=display=boot;slotselect
-/dtbo                     emmc     /dev/block/by-name/dtbo                                flags=display=dtbo;slotselect
-/init_boot                emmc     /dev/block/by-name/init_boot                           flags=display=init_boot;slotselect
-/vendor_boot              emmc     /dev/block/by-name/vendor_boot                         flags=display=vendor_boot;slotselect
-/vbmeta                   emmc     /dev/block/by-name/vbmeta                              flags=display=vbmeta;slotselect
-/vbmeta_system            emmc     /dev/block/by-name/vbmeta_system                       flags=display=vbmeta_system;slotselect
-/vbmeta_vendor            emmc     /dev/block/by-name/vbmeta_vendor                       flags=display=vbmeta_vendor;slotselect
-/bootloader               emmc     /dev/block/by-name/lk                                  flags=display=bootloader;slotselect
-/logo                     emmc     /dev/block/by-name/logo                                flags=display=logo;slotselect
-/tee                      emmc     /dev/block/by-name/tee                                flags=display=tee;slotselect
-/gz                        emmc     /dev/block/by-name/gz                                 flags=display=gz;slotselect
-/scp                      emmc     /dev/block/by-name/scp                                flags=display=scp;slotselect
-/sspm                     emmc     /dev/block/by-name/sspm                               flags=display=sspm;slotselect
-/mcupm                    emmc     /dev/block/by-name/mcupm                              flags=display=mcupm;slotselect
-/dpm                       emmc     /dev/block/by-name/dpm                                flags=display=dpm;slotselect
-/spmfw                    emmc     /dev/block/by-name/spmfw                              flags=display=spmfw;slotselect
-/pi_img                    emmc     /dev/block/by-name/pi_img                             flags=display=pi_img;slotselect
-/cam_vpu1                  emmc     /dev/block/by-name/cam_vpu1                           flags=display=cam_vpu1;slotselect
-/cam_vpu2                  emmc     /dev/block/by-name/cam_vpu2                           flags=display=cam_vpu2;slotselect
-/cam_vpu3                  emmc     /dev/block/by-name/cam_vpu3                           flags=display=cam_vpu3;slotselect
+/dev/block/by-name/protect1                /mnt/vendor/protect_f    ext4    ro,noatime,nosuid,nodev                          wait
+/dev/block/by-name/protect2                /mnt/vendor/protect_s    ext4    ro,noatime,nosuid,nodev                          wait
+/dev/block/by-name/nvdata                  /mnt/vendor/nvdata       ext4    ro,noatime,nosuid,nodev                          wait
+/dev/block/by-name/nvcfg                   /mnt/vendor/nvcfg        ext4    ro,noatime,nosuid,nodev                          wait
+/dev/block/by-name/persist                 /mnt/vendor/persist      ext4    ro,noatime,nosuid,nodev                          wait
+/dev/block/by-name/oempersist              /mnt/oempersist          ext4    ro,noatime,nosuid,nodev                          wait
 
-# 非 A/B 的 MTK 分区
-/persistent               emmc     /dev/block/by-name/frp                                 flags=display=persistent
-/nvram                     emmc     /dev/block/by-name/nvram                              flags=display=nvram
-/proinfo                   emmc     /dev/block/by-name/proinfo                            flags=display=proinfo
-/seccfg                    emmc     /dev/block/by-name/seccfg                             flags=display=seccfg
-/expdb                     emmc     /dev/block/by-name/expdb                              flags=display=expdb
-/boot_para                 emmc     /dev/block/by-name/boot_para                          flags=display=boot_para
-/misc                      emmc     /dev/block/by-name/misc                               flags=display=misc
-/otp                       emmc     /dev/block/by-name/otp                                flags=display=otp
-/flashinfo                 emmc     /dev/block/by-name/flashinfo                          flags=display=flashinfo
-/tal_sec                   emmc     /dev/block/by-name/tal_sec                             flags=display=tal_sec
+/dev/block/by-name/boot                    /boot            emmc    defaults    slotselect
+/dev/block/by-name/dtbo                    /dtbo            emmc    defaults    slotselect
+/dev/block/by-name/init_boot               /init_boot       emmc    defaults    slotselect
+/dev/block/by-name/vendor_boot             /vendor_boot     emmc    defaults    slotselect
+/dev/block/by-name/vbmeta                  /vbmeta          emmc    defaults    slotselect
+/dev/block/by-name/vbmeta_system           /vbmeta_system   emmc    defaults    slotselect
+/dev/block/by-name/vbmeta_vendor           /vbmeta_vendor   emmc    defaults    slotselect
+/dev/block/by-name/lk                      /bootloader      emmc    defaults    slotselect
+/dev/block/by-name/logo                    /logo            emmc    defaults    slotselect
+/dev/block/by-name/tee                     /tee             emmc    defaults    slotselect
+/dev/block/by-name/gz                      /gz              emmc    defaults    slotselect
+/dev/block/by-name/scp                     /scp             emmc    defaults    slotselect
+/dev/block/by-name/sspm                    /sspm            emmc    defaults    slotselect
+/dev/block/by-name/mcupm                   /mcupm           emmc    defaults    slotselect
+/dev/block/by-name/dpm                     /dpm             emmc    defaults    slotselect
+/dev/block/by-name/spmfw                   /spmfw           emmc    defaults    slotselect
+/dev/block/by-name/pi_img                  /pi_img          emmc    defaults    slotselect
+/dev/block/by-name/cam_vpu1                /cam_vpu1        emmc    defaults    slotselect
+/dev/block/by-name/cam_vpu2                /cam_vpu2        emmc    defaults    slotselect
+/dev/block/by-name/cam_vpu3                /cam_vpu3        emmc    defaults    slotselect
 
-# 外置存储
-auto                       auto     /devices/platform/externdevice*                        flags=display=auto
-auto                       vfat     /devices/platform/usb_xhci*                           flags=display=auto
-auto                       vfat     /devices/platform/soc/11201000.usb0/11200000.xhci*     flags=display=auto
-auto                       vfat     /devices/platform/usb0/11200000.xhci*                  flags=display=auto
+/dev/block/by-name/frp                     /persistent      emmc    defaults    defaults
+/dev/block/by-name/nvram                   /nvram           emmc    defaults    defaults
+/dev/block/by-name/proinfo                 /proinfo         emmc    defaults    defaults
+/dev/block/by-name/seccfg                  /seccfg          emmc    defaults    defaults
+/dev/block/by-name/expdb                   /expdb           emmc    defaults    defaults
+/dev/block/by-name/boot_para               /boot_para       emmc    defaults    defaults
+/dev/block/by-name/misc                    /misc            emmc    defaults    defaults
+/dev/block/by-name/otp                     /otp             emmc    defaults    defaults
+/dev/block/by-name/flashinfo               /flashinfo       emmc    defaults    defaults
+/dev/block/by-name/tal_sec                 /tal_sec         emmc    defaults    defaults
