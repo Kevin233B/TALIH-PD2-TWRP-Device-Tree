@@ -140,12 +140,13 @@ TW_DEVICE_VERSION := Kevin233B
 TW_NO_LEGACY_PROPS := true
 TW_NO_REBOOT_BOOTLOADER := true
 TW_SCREEN_BLANK_ON_BOOT := true
-TW_EXCLUDE_DEFAULT_USB_INIT := true
 TW_EXCLUDE_SUPERSU := true
 # 温区实测: thermal_zone3 = mtktscpu (zone0 是电池 mtktsbattery)
 TW_CUSTOM_CPU_TEMP_PATH := "/sys/class/thermal/thermal_zone3/temp"
 TARGET_OTA_ASSERT_DEVICE := ls12_mt8797_wifi_64
-TARGET_USE_CUSTOM_LUN_FILE_PATH := /config/usb_gadget/g1/functions/mass_storage.0/lun.%d/file
+# USB: 本机内核保留老式 /sys/class/android_usb 接口(实测存在), 不设
+# TW_EXCLUDE_DEFAULT_USB_INIT, 让 TWRP 自带的 init.recovery.usb.rc 直接
+# 生效; 无需自定义 configfs rc, UMS lun 路径由 TWRP 自动探测
 
 # Hack: prevent anti rollback
 PLATFORM_SECURITY_PATCH := 2099-12-31
