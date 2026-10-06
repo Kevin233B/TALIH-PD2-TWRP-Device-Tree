@@ -7,6 +7,13 @@ AB_OTA_POSTINSTALL_CONFIG += \
     FILESYSTEM_TYPE_system=ext4 \
     POSTINSTALL_OPTIONAL_system=true
 
+# Dynamic partitions
+PRODUCT_USE_DYNAMIC_PARTITIONS := true
+
+# Virtual A/B
+ENABLE_VIRTUAL_AB := true
+$(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota.mk)
+
 # Health HAL
 PRODUCT_PACKAGES += \
     android.hardware.health@2.1-impl \
@@ -32,9 +39,5 @@ PRODUCT_PACKAGES += \
     update_verifier \
     update_engine_sideload
 
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/recovery/root/init.recovery.mt6893.rc:$(TARGET_COPY_OUT_RECOVERY)/root/init.recovery.mt6893.rc \
-    $(LOCAL_PATH)/recovery/root/init.recovery.mt8797.rc:$(TARGET_COPY_OUT_RECOVERY)/root/init.recovery.mt8797.rc \
-    $(LOCAL_PATH)/recovery/root/system/etc/init/mtk-plpath-utils.rc:$(TARGET_COPY_OUT_RECOVERY)/root/system/etc/init/mtk-plpath-utils.rc \
-    $(LOCAL_PATH)/recovery/root/system/etc/init/snapuserd.rc:$(TARGET_COPY_OUT_RECOVERY)/root/system/etc/init/snapuserd.rc \
-    $(LOCAL_PATH)/prebuilt/mtk_plpath_utils:$(TARGET_COPY_OUT_RECOVERY)/root/system/bin/mtk_plpath_utils
+# Recovery ramdisk files (recovery/root/ is copied into the ramdisk
+# automatically by the build system, no PRODUCT_COPY_FILES needed here)
