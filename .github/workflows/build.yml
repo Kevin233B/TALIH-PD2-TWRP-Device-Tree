@@ -61,14 +61,18 @@ jobs:
           grep -n "rsync -a --exclude=sdcard" ~/twrpsrc/build/make/core/Makefile | head -2
           ls -la ~/twrpsrc/device/alps/ls12_mt8797_wifi_64
 
-      - name: Build recovery image
+      - name: Build recovery ramdisk
         run: |
           cd ~/twrpsrc
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL=C
           . build/envsetup.sh
           lunch twrp_ls12_mt8797_wifi_64-eng
-          mka bootimage recoveryimage -j$(nproc --all)
+          # AOSP 12.1 mkbootimg unconditionally requires a non-empty DTB for
+          # header v2, so the stock bootimage/recoveryimage packaging rules
+          # cannot succeed without --dtb. Build only the ramdisk plus the host
+          # mkbootimg tool; the final image is assembled in the next step.
+          mka ramdisk-recovery.img mkbootimg -j$(nproc --all)
         timeout-minutes: 150
 
       - name: Assemble boot image (MTK LK layout)
@@ -80,36 +84,45 @@ jobs:
           out/host/linux-x86/bin/mkbootimg \
             --kernel $DEVICE/prebuilt/Image.gz \
             --ramdisk $DT/ramdisk-recovery.img \
+            --dtb $DEVICE/prebuilt/dtb.img \
             --base 0x40000000 --kernel_offset 0x00080000 \
             --ramdisk_offset 0x11100000 --tags_offset 0x07c80000 \
+            --dtb_offset 0x07c80000 \
             --header_version 2 --pagesize 2048 \
             --cmdline "bootopt=64S3,32N2,64N2 buildvariant=user" \
             --os_version 12.0.0 --os_patch_level 2023-06 \
             --output $GITHUB_WORKSPACE/boot-twrp.img
-          # 原厂布局: header dtb_size=0, dtb.img (DTBO 容器) 追加在 ramdisk
-          # 页对齐偏移之后, 并填充到 boot 分区大小 64MiB (dd 刷写安全)
+          # 运行中镜像实测布局: header v2 携带真实 dtb_size, MTK DTB 容器
+          # (d7b7ab1e 魔数, 与 prebuilt/dtb.img 逐字节一致) 摆在标准 v2 dtb
+          # 偏移 page*(1+kernel_pages+ramdisk_pages), dtb_addr=0x47c80000。
+          # mkbootimg --dtb 直出同款布局; 此处仅做字节校验并填充到 boot
+          # 分区大小 64MiB (dd 刷写安全)
           python3 - <<'EOF'
           import os, struct
           ws = os.environ['GITHUB_WORKSPACE']
           src = os.path.join(ws, 'boot-twrp.img')
           boot = open(src,'rb').read()
-          magic, kernel_size = boot[0:8], struct.unpack('<I', boot[8:12])[0]
+          magic = boot[0:8]
+          kernel_size = struct.unpack('<I', boot[8:12])[0]
           ramdisk_size = struct.unpack('<I', boot[16:20])[0]
           page = struct.unpack('<I', boot[36:40])[0]
+          dtb_size = struct.unpack('<I', boot[1648:1652])[0]
+          dtb_addr = struct.unpack('<Q', boot[1652:1660])[0]
           assert magic == b'ANDROID!', 'bad mkbootimg output'
+          kpages = (kernel_size + page - 1)//page
+          rpages = (ramdisk_size + page - 1)//page
+          dtb_off = page * (1 + kpages + rpages)
           dtb = open(os.path.join(ws, 'prebuilt/dtb.img'),'rb').read()
-          end = page * (1 + (kernel_size + page - 1)//page + (ramdisk_size + page - 1)//page)
-          assert end <= len(boot), 'unexpected mkbootimg layout'
-          out = boot[:end] + dtb
+          assert dtb_size == len(dtb), 'dtb_size mismatch'
+          assert boot[dtb_off:dtb_off+dtb_size] == dtb, 'dtb payload mismatch'
+          assert dtb_addr == 0x47c80000, 'dtb_addr mismatch'
           part = 67108864
-          assert len(out) <= part, 'image exceeds boot partition'
-          out += b'\0' * (part - len(out))
+          assert len(boot) <= part, 'image exceeds boot partition'
+          out = boot + b'\0' * (part - len(boot))
           open(src,'wb').write(out)
-          print(f'assembled: kernel={kernel_size} ramdisk={ramdisk_size} dtb={len(dtb)} total={len(out)}')
+          print(f'assembled: kernel={kernel_size} ramdisk={ramdisk_size} dtb={dtb_size} total={len(out)}')
           EOF
-          # 保留 AOSP 构建直出的 recovery.img (BOARD_USES_RECOVERY_AS_BOOT) 供对比
-          cp $DT/recovery.img $GITHUB_WORKSPACE/recovery.img 2>/dev/null || true
-          ls -la $GITHUB_WORKSPACE/boot-twrp.img $GITHUB_WORKSPACE/recovery.img || true
+          ls -la $GITHUB_WORKSPACE/boot-twrp.img
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -117,6 +130,5 @@ jobs:
           name: twrp-ls12_mt8797_wifi_64
           path: |
             boot-twrp.img
-            recovery.img
           retention-days: 14
           if-no-files-found: error
