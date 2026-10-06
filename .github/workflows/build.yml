@@ -29,6 +29,19 @@ jobs:
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
 
+      - name: Set up swap space
+        # ubuntu-22.04 runner: 16 GB RAM, root disk only ~14 GB free.
+        # Put a 16G swapfile on /mnt (the large volume) so linking-heavy
+        # build stages do not OOM or stall the runner.
+        run: |
+          sudo swapoff -a || true
+          sudo rm -f /mnt/swapfile
+          sudo fallocate -l 16G /mnt/swapfile || sudo dd if=/dev/zero of=/mnt/swapfile bs=1M count=16384
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+
       - name: Sync TWRP source (twrp-12.1)
         run: |
           mkdir -p ~/twrpsrc && cd ~/twrpsrc
