@@ -1,0 +1,33 @@
+diff --git a/events.cpp b/events.cpp
+index e497df6..c177439 100644
+--- a/events.cpp
++++ b/events.cpp
+@@ -558,7 +558,15 @@ static int vk_modify(struct ev *e, struct input_event *ev)
+                 // We're in a touch release, although some devices will still send positions as well
+                 e->mt_p.x = 0;
+                 e->mt_p.y = 0;
+-                touchReleaseOnNextSynReport = 1;
++                // Do not downgrade a tracking-id release marker: some
++                // drivers (e.g. Himax HX83121A) emit ABS_MT_TRACKING_ID -1
++                // first and ABS_MT_TOUCH_MAJOR/PRESSURE 0 after it in the
++                // same finger-up frame. Clobbering the marker left both
++                // release conditions at SYN_REPORT false, so the GUI never
++                // saw a finger-up: buttons highlighted without activating
++                // and sliders never committed.
++                if (touchReleaseOnNextSynReport != 2)
++                    touchReleaseOnNextSynReport = 1;
+ #endif
+             }
+ #ifdef _EVENT_LOGGING
+@@ -572,7 +580,10 @@ static int vk_modify(struct ev *e, struct input_event *ev)
+                 // We're in a touch release, although some devices will still send positions as well
+                 e->mt_p.x = 0;
+                 e->mt_p.y = 0;
+-                touchReleaseOnNextSynReport = 1;
++                // Same as the TOUCH_MAJOR case above: never downgrade a
++                // tracking-id release marker back from 2.
++                if (touchReleaseOnNextSynReport != 2)
++                    touchReleaseOnNextSynReport = 1;
+             }
+ #ifdef _EVENT_LOGGING
+             printf("EV: %s => EV_ABS  ABS_MT_PRESSURE  %d\n", e->deviceName, ev->value);

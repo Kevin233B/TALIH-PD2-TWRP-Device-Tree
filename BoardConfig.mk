@@ -104,13 +104,20 @@ BOARD_HAS_NO_SELECT_BUTTON := true
 # (captured on-device with getevent; 222/222 lifts carry this exact shape).
 # In minuitwrp/events.cpp the tracking-id case sets
 # touchReleaseOnNextSynReport=2 and use_tracking_id_negative_as_touch_release,
-# but the later zero TOUCH_MAJOR/PRESSURE events overwrite the flag back to 1,
-# so at SYN_REPORT BOTH release conditions are false: the GUI gets touch-down
-# and drag updates but never a finger-up (buttons highlight but never
-# activate, sliders never commit). Ignoring the tracking-id events drops that
-# poisoned flag pairing and lets release detection use the PRESSURE==0 path,
-# which this driver reports on every single lift.
-TW_IGNORE_ABS_MT_TRACKING_ID := true
+# but the later zero TOUCH_MAJOR/PRESSURE events overwrite the marker back to
+# 1, so at SYN_REPORT BOTH release conditions are false: the GUI gets
+# touch-down and drag updates but never a finger-up (buttons highlight but
+# never activate, sliders never commit).
+#
+# TW_IGNORE_ABS_MT_TRACKING_ID would mask this by ignoring the tracking-id
+# events, but the flag has no wiring in the twrp-12.1 build: neither
+# TeamWin/android_bootable_recovery nor TeamWin/android_vendor_twrp turns the
+# BoardConfig variable into -DTW_IGNORE_ABS_MT_TRACKING_ID (verified against
+# both trees; the soong_config list in vendor/twrp/build/soong/Android.bp
+# covers TW_IGNORE_MAJOR_AXIS_0 and TW_INPUT_BLACKLIST but not this flag), so
+# setting it here is a no-op. The real fix is the source patch applied by CI:
+# patches/0001-minuitwrp-keep-tracking-id-release-marker.patch keeps a
+# tracking-id release marker (2) from being downgraded back to 1.
 TW_THEME := portrait_hdpi
 TW_BRIGHTNESS_PATH := "/sys/class/leds/lcd-backlight/brightness"
 TW_MAX_BRIGHTNESS := 255

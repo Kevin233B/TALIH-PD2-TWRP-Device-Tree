@@ -61,6 +61,20 @@ jobs:
           grep -n "rsync -a --exclude=sdcard" ~/twrpsrc/build/make/core/Makefile | head -2
           ls -la ~/twrpsrc/device/alps/ls12_mt8797_wifi_64
 
+      - name: Patch TWRP source (device-specific fixes)
+        # minuitwrp/events.cpp: this panel's himax driver reports finger-up as
+        # ABS_MT_TRACKING_ID -1 followed by zero TOUCH_MAJOR/PRESSURE in the
+        # same frame; upstream overwrites the tracking-id release marker, so
+        # the GUI never sees a finger-up. No BoardConfig flag can fix this
+        # (TW_IGNORE_ABS_MT_TRACKING_ID has no wiring in twrp-12.1), so the
+        # fix ships as a patch from this tree. git apply --check makes the
+        # build fail loudly if upstream drifts instead of silently skipping.
+        run: |
+          cd ~/twrpsrc/bootable/recovery
+          git apply --check $GITHUB_WORKSPACE/patches/*.patch
+          git apply $GITHUB_WORKSPACE/patches/*.patch
+          grep -n "touchReleaseOnNextSynReport != 2" minuitwrp/events.cpp
+
       - name: Build boot image
         run: |
           cd ~/twrpsrc
