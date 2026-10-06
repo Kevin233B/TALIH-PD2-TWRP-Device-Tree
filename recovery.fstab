@@ -13,9 +13,11 @@ product                       /product               ext4    ro,barrier=1,discar
 # ramdisk keymaster (see init.recovery.mt8797.rc).
 /dev/block/by-name/userdata   /data                  f2fs    noatime,nosuid,nodev,discard,noflush_merge,fsync_mode=nobarrier,reserve_root=134217,resgid=1065,inlinecrypt    wait,check,formattable,quota,latemount,resize,reservedsize=128m,checkpoint=fs,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,keydirectory=/metadata/vold/metadata_encryption,fsverity
 
-# FBE key directory. Read-only on purpose: vold only reads the wrapped key
-# and secdiscardable through this mount, and ro keeps every write path
-# (including fat-fingered ones) off the partition that holds the keys.
+# FBE key directory. Kept read-only here, but note the vendor fstab
+# second pass (Process_Fstab's parse_userdata phase) replaces this entry
+# with the stock one (formattable, rw) — the load-bearing protection for
+# /metadata is patches/0002-partition-never-wipeable-metadata.patch, which
+# hard-disables wipe/GUI-wipe for /metadata after all flag processing.
 /dev/block/by-name/metadata   /metadata              ext4    ro,noatime,nosuid,nodev    wait
 
 # MTK calibration partitions (read-only)

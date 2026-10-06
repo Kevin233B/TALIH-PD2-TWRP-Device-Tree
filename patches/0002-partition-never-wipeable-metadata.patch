@@ -1,0 +1,20 @@
+diff --git a/partition.cpp b/partition.cpp
+--- a/partition.cpp
++++ b/partition.cpp
+@@ -657,6 +657,16 @@ bool TWPartition::Process_Fstab_Line(const char *fstab_line, bool Display_Error,
+ 		}
+ 	}
+ 
++	// /metadata holds the FBE key material (keydirectory=); it must
++	// never be wipeable or exposed in the wipe GUI, no matter what
++	// the (vendor) fstab entry says. The /system special case above
++	// does the same for /system.
++	if (Mount_Point == "/metadata") {
++		Can_Be_Backed_Up = false;
++		Wipe_Available_in_GUI = false;
++		Can_Be_Wiped = false;
++	}
++
+ 	if (Mount_Point == "/persist" && Can_Be_Mounted) {
+ 		bool mounted = Is_Mounted();
+ 		if (mounted || Mount(false)) {
