@@ -38,7 +38,11 @@ AB_OTA_PARTITIONS += \
     vbmeta_system \
     vbmeta_vendor
 BOARD_USES_RECOVERY_AS_BOOT := true
-TW_HAS_NO_RECOVERY_PARTITION := true
+# TW_HAS_NO_RECOVERY_PARTITION (a TWRP 3.x recoveryimage flag) has no consumer
+# anywhere in the twrp-12.1 build: zero references in
+# TeamWin/android_bootable_recovery, TeamWin/android_vendor_twrp and
+# TeamWin/android_build (core/Makefile + core/config.mk). Removed after the
+# Round B flag-wiring audit.
 
 # Kernel
 TARGET_FORCE_PREBUILT_KERNEL := true
@@ -85,7 +89,10 @@ BOARD_MAIN_SIZE := 32210157568
 # Filesystems
 TARGET_USERIMAGES_USE_EXT4 := true
 TARGET_USERIMAGES_USE_F2FS := true
-TARGET_USES_MKE2FS := true
+# TARGET_USES_MKE2FS was an android-8/9 transition flag (make_ext4fs -> mke2fs).
+# android-12 has no make_ext4fs at all: core/config.mk sets MKE2FS_CONF
+# unconditionally and every ext4 image goes through mke2fs, so the flag is
+# inert here. Removed after the Round B flag-wiring audit.
 BOARD_SUPPRESS_SECURE_ERASE := true
 
 # Recovery
@@ -142,14 +149,19 @@ TW_INCLUDE_LIBRESETPROP := true
 TW_INCLUDE_RESETPROP := true
 TWRP_INCLUDE_LOGCAT := true
 TARGET_USES_LOGD := true
-TW_DEFAULT_DEVICE_NAME := TALIH-PD2
+# TW_DEFAULT_DEVICE_NAME has no consumer in the twrp-12.1 build (zero
+# references in TeamWin/android_bootable_recovery and android_vendor_twrp);
+# the displayed device name comes from ro.product.device. Removed after the
+# Round B flag-wiring audit.
 TW_DEFAULT_LANGUAGE := zh_CN
 TW_EXTRA_LANGUAGES := true
 TW_DEVICE_VERSION := Kevin233B
 TW_NO_LEGACY_PROPS := true
 TW_NO_REBOOT_BOOTLOADER := true
 TW_SCREEN_BLANK_ON_BOOT := true
-TW_EXCLUDE_SUPERSU := true
+# TW_EXCLUDE_SUPERSU has no consumer: SuperSU installation is deprecated and
+# removed in twrp-12.1 (gui/action.cpp logs "Installing SuperSU was
+# deprecated from TWRP"). Removed after the Round B flag-wiring audit.
 # 温区实测: thermal_zone3 = mtktscpu (zone0 是电池 mtktsbattery)
 TW_CUSTOM_CPU_TEMP_PATH := "/sys/class/thermal/thermal_zone3/temp"
 TARGET_OTA_ASSERT_DEVICE := ls12_mt8797_wifi_64
