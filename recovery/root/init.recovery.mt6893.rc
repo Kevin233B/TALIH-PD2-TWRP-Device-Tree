@@ -1,5 +1,7 @@
-import /init.recovery.project.rc
-import /init.recovery.usb.rc
+# No imports of our own: the packed hw/init.rc already imports
+# init.recovery.{logd,ldconfig,mksh,usb,service}.${ro.hardware}.rc, so a
+# local import of usb.rc would be a duplicate and project.rc is not
+# shipped by this tree (a dead import logs a warning every boot).
 
 on early-init
     # Force TWRP onto the fbdev graphics backend (Round B screen fix).
@@ -49,12 +51,17 @@ on init
     # the DRM backend would be skipped anyway.
     wait /dev/dri/card0 10
     rm /dev/dri/card0
+    # Breadcrumb: proves this trigger fired when read back from pstore
+    # (init's write builtin needs no service; /dev/kmsg exists from
+    # ueventd and logd already runs with a w grant on it).
+    write /dev/kmsg "pd2 rc: on init complete"
 
 on boot
-    # No-PC diagnostics: 35s in, dump TWRP's log into the kernel ring so
-    # it survives to /sys/fs/pstore across a warm reboot (TWRP's Reboot ->
-    # System). See sbin/tw_kmsglog.sh; init's own action errors reach the
-    # kernel log live already.
+    # No-PC diagnostics: mirror TWRP's log into the kernel ring so it
+    # survives to /sys/fs/pstore across a warm reboot (TWRP's Reboot ->
+    # System). See sbin/tw_kmsglog.sh (v2, self-diagnosing). init's own
+    # action errors reach the kernel log live already.
+    write /dev/kmsg "pd2 rc: on boot fired"
     start tw_kmsglog
 
 on fs && property:ro.debuggable=0
@@ -92,3 +99,12 @@ service tw_kmsglog /system/bin/sh /sbin/tw_kmsglog.sh
     group root
     disabled
     oneshot
+    # Mandatory: every service in the packed ramdisk carries a seclabel.
+    # Without one, init (SELinux enabled, even permissive) refuses to
+    # start the service — the context derived from the script file
+    # (u:object_r:rootfs:s0) is a file type, not a process domain, and
+    # v4's start tw_kmsglog was silently refused this way (the error only
+    # reached logd, which dies with the session). u:r:recovery:s0 is the
+    # domain the GUI binary and the boot/health HAL services already run
+    # under in this exact policy.
+    seclabel u:r:recovery:s0

@@ -164,6 +164,17 @@ TW_SCREEN_BLANK_ON_BOOT := true
 # deprecated from TWRP"). Removed after the Round B flag-wiring audit.
 # 温区实测: thermal_zone3 = mtktscpu (zone0 是电池 mtktsbattery)
 TW_CUSTOM_CPU_TEMP_PATH := "/sys/class/thermal/thermal_zone3/temp"
+# Battery: TWRP 12.1's default monitor uses GetBatteryInfo() (health@2.0
+# HAL over hwbinder). No health service runs in this recovery, so it hits
+# the "no health implementation, assuming defaults" fallback in
+# recovery_utils/battery_utils.cpp: charging=true, capacity=100 — the
+# observed "100%+" on a ~46% battery (v4 session; live sysfs read 46 /
+# Charging). The legacy path reads
+# /sys/class/power_supply/battery/{capacity,status} directly, exactly what
+# the running system exposes. Wired in the recovery root Android.mk
+# (ifeq -> -DTW_USE_LEGACY_BATTERY_SERVICES in twrp.cpp
+# monitorBatteryInBackground).
+TW_USE_LEGACY_BATTERY_SERVICES := true
 TARGET_OTA_ASSERT_DEVICE := ls12_mt8797_wifi_64
 # USB: adb 由 init 侧保证(见 init.recovery.mt6893/8797.rc 的 on init):
 # configfs=0 + persist.sys.usb.config=adb → boot 时 init.usb.rc 老式
