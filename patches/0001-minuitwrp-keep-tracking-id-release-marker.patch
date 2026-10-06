@@ -1,7 +1,7 @@
-diff --git a/events.cpp b/events.cpp
+diff --git a/minuitwrp/events.cpp b/minuitwrp/events.cpp
 index e497df6..c177439 100644
---- a/events.cpp
-+++ b/events.cpp
+--- a/minuitwrp/events.cpp
++++ b/minuitwrp/events.cpp
 @@ -558,7 +558,15 @@ static int vk_modify(struct ev *e, struct input_event *ev)
                  // We're in a touch release, although some devices will still send positions as well
                  e->mt_p.x = 0;
