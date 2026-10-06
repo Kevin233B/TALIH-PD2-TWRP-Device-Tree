@@ -93,9 +93,13 @@ TARGET_RECOVERY_DEVICE_MODULES += \
     libpuresoftkeymasterdevice
 
 # Display
-TW_THEME := landscape_hdpi
-TW_SCREEN_WIDTH := 2560
-TW_SCREEN_HEIGHT := 1600
+# Native panel is a WQXGA Himax in-cell (hx83121a_cdot_csot_wqxga) that comes
+# up as a portrait framebuffer: 1600x2560, rotate=0. Touch panel-coords are
+# identical to display-coords (1600x2560), so recovery touch aligns natively
+# and no axis swap or offset is needed.
+TW_THEME := portrait_hdpi
+TW_SCREEN_WIDTH := 1600
+TW_SCREEN_HEIGHT := 2560
 TW_BRIGHTNESS_PATH := "/sys/class/leds/lcd-backlight/brightness"
 TW_MAX_BRIGHTNESS := 255
 TW_DEFAULT_BRIGHTNESS := 160
