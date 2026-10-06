@@ -14,6 +14,14 @@ PRODUCT_USE_DYNAMIC_PARTITIONS := true
 ENABLE_VIRTUAL_AB := true
 $(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota.mk)
 
+# Device ships Android 12 (MSSI: system upgraded to 13, vendor stays 12)
+PRODUCT_TARGET_VNDK_VERSION := 31
+PRODUCT_SHIPPING_API_LEVEL := 31
+
+# Prevent zip-installer security-patch asserts from failing in recovery
+PRODUCT_PROPERTY_OVERRIDES += \
+    ro.vendor.build.security_patch=2099-12-31
+
 # Health HAL
 PRODUCT_PACKAGES += \
     android.hardware.health@2.1-impl \
@@ -24,7 +32,8 @@ PRODUCT_PACKAGES += \
     android.hardware.boot@1.2-mtkimpl.recovery
 
 PRODUCT_PACKAGES_DEBUG += \
-    bootctl
+    bootctl \
+    update_engine_client
 
 # Fastbootd
 PRODUCT_PACKAGES += \
