@@ -54,7 +54,7 @@ jobs:
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL=C
           . build/envsetup.sh
-          lunch omni_ls12_mt8797_wifi_64-eng
+          lunch twrp_ls12_mt8797_wifi_64-eng
           mka bootimage recoveryimage -j$(nproc --all)
         timeout-minutes: 150
 
