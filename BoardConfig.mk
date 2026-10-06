@@ -131,14 +131,22 @@ TW_MAX_BRIGHTNESS := 255
 TW_DEFAULT_BRIGHTNESS := 160
 
 # /sdcard lives on /data (FBE), so TWRP must treat it as data media.
-# /data mounts raw this round: the crypto keywords (fileencryption=,
-# checkpoint=fs, fsverity) in its fstab entry plus TW_INCLUDE_CRYPTO*
-# pushed TWRP's vold into a blocking wait for a keymaster HAL that the
-# ramdisk manifest declared but never provided (no impl, never started).
-# FBE decryption returns with the real /vendor/bin/hw keymaster@4.1
-# service (class early_hal) once boot-time adb diagnostics are in place.
+# /data is metadata-encrypted (dm-default-key, keydirectory=
+# /metadata/vold/metadata_encryption) with FBE v2 on top. Decryption is
+# enabled (v6): the fstab /data entry carries the stock crypto keywords
+# again, the real vendor keymaster@4.1 service + its full readelf-verified
+# library closure live in the ramdisk (recovery/root/system), and the
+# VINTF fragment at recovery/root/vendor/etc/vintf/manifest declares the
+# HAL so vold's libhidl client resolves transport=hwbinder via
+# hwservicemanager's getTransport (the v5 session logged a getTransport
+# miss for every unmanifested HAL). Round A's logo hang was exactly the
+# missing service leg of this chain; with the service up before
+# Decrypt_Data() runs, vold's keymaster wait resolves.
 RECOVERY_SDCARD_ON_DATA := true
 BOARD_USES_METADATA_PARTITION := true
+TW_INCLUDE_CRYPTO := true
+TW_INCLUDE_CRYPTO_FBE := true
+TW_INCLUDE_FBE_METADATA_DECRYPT := true
 
 # TWRP
 TW_USE_TOOLBOX := true
@@ -158,7 +166,12 @@ TW_EXTRA_LANGUAGES := true
 TW_DEVICE_VERSION := Kevin233B
 TW_NO_LEGACY_PROPS := true
 TW_NO_REBOOT_BOOTLOADER := true
-TW_SCREEN_BLANK_ON_BOOT := true
+# Screen-blank on boot removed (v6): gui_init()'s TW_SCREEN_BLANK_ON_BOOT
+# path blanks (brightness 000 + FBIOBLANK POWERDOWN) and immediately
+# unblanks around the first splash render; on this MTK panel that dance
+# left a white screen until the first input event redrew a frame (v5
+# field report: touch once and it recovers). Without the flag the first
+# frame renders directly.
 # TW_EXCLUDE_SUPERSU has no consumer: SuperSU installation is deprecated and
 # removed in twrp-12.1 (gui/action.cpp logs "Installing SuperSU was
 # deprecated from TWRP"). Removed after the Round B flag-wiring audit.

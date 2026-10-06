@@ -5,11 +5,17 @@ system                        /system                ext4    ro,barrier=1,discar
 vendor                        /vendor                ext4    ro,barrier=1,discard      wait,slotselect,logical
 product                       /product               ext4    ro,barrier=1,discard      wait,slotselect,logical
 
-# Userdata (FBE v2 on the device; mounted raw like the verified baseline -
-# crypto keywords here previously pushed TWRP into a blocking keymaster wait)
-/dev/block/by-name/userdata   /data                  f2fs    noatime,nosuid,nodev,discard    wait,formattable
+# Userdata: metadata encryption (dm-default-key) + FBE v2 on top. The
+# stock crypto keywords are restored (v6): keydirectory= drives
+# Decrypt_Data() -> fscrypt_mount_metadata_encrypted, fileencryption=
+# carries the FBE v2 policy for the on-top decrypt. Round A's logo hang
+# with these keywords was the missing keymaster service leg, closed by the
+# ramdisk keymaster (see init.recovery.mt8797.rc).
+/dev/block/by-name/userdata   /data                  f2fs    noatime,nosuid,nodev,discard,noflush_merge,fsync_mode=nobarrier,reserve_root=134217,resgid=1065,inlinecrypt    wait,check,formattable,quota,latemount,resize,reservedsize=128m,checkpoint=fs,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,keydirectory=/metadata/vold/metadata_encryption,fsverity
 
-# FBE key directory (read-only)
+# FBE key directory. Read-only on purpose: vold only reads the wrapped key
+# and secdiscardable through this mount, and ro keeps every write path
+# (including fat-fingered ones) off the partition that holds the keys.
 /dev/block/by-name/metadata   /metadata              ext4    ro,noatime,nosuid,nodev    wait
 
 # MTK calibration partitions (read-only)

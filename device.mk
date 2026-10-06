@@ -50,3 +50,13 @@ PRODUCT_PACKAGES += \
 
 # Recovery ramdisk files (recovery/root/ is copied into the ramdisk
 # automatically by the build system, no PRODUCT_COPY_FILES needed here)
+#
+# Keymaster for /data decryption (Round C) is shipped the same way as
+# static ramdisk files: byte-identical copies of the running system's
+# vendor keymaster@4.1 service (recovery/root/system/bin) plus its full
+# readelf-verified DT_NEEDED closure (13 vendor libs under
+# recovery/root/system/lib64; every other dependency already ships in the
+# recovery ramdisk), and a VINTF fragment at
+# recovery/root/vendor/etc/vintf/manifest so vold's libhidl client can
+# resolve the HAL transport. Started explicitly at on boot by
+# init.recovery.mt8797.rc, before the recovery binary runs Decrypt_Data().

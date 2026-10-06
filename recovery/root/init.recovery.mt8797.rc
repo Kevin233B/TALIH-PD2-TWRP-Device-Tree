@@ -51,17 +51,35 @@ on init
     # the DRM backend would be skipped anyway.
     wait /dev/dri/card0 10
     rm /dev/dri/card0
-    # Breadcrumb: proves this trigger fired when read back from pstore
-    # (init's write builtin needs no service; /dev/kmsg exists from
-    # ueventd and logd already runs with a w grant on it).
-    write /dev/kmsg "pd2 rc: on init complete"
 
 on boot
+    # Keymaster 4.1 for /data decryption (Round C). The service is the
+    # byte-identical real vendor binary with its full readelf-verified
+    # library closure under /system/lib64, declared as a VINTF fragment
+    # at /vendor/etc/vintf/manifest so vold's libhidl client resolves
+    # transport=hwbinder via hwservicemanager getTransport. It must
+    # register before the recovery binary runs Decrypt_Data(): the /data
+    # fstab entry carries the stock fileencryption= + keydirectory=
+    # keywords and TWRP's vold waits for the keymaster HAL to unwrap
+    # the metadata-encryption key. This imported on-boot action runs
+    # before hw/init.rc's own on-boot class_start default, so the
+    # service is up before the recovery binary starts. hwservicemanager
+    # (started by its own rc at on init) is already running here. Flat
+    # /system/bin rather than a hw/ subdirectory: this ramdisk's
+    # ld.config.txt maps exactly dir.recovery = /system/bin into the
+    # recovery linker namespace and that match is not recursive. The
+    # vendor rc (class early_hal, user system drmrpc) is not reusable
+    # verbatim: this recovery only starts the default class, and the
+    # explicit-start + root pattern mirrors hwservicemanager itself.
+    start keymaster-4-1
+
     # No-PC diagnostics: mirror TWRP's log into the kernel ring so it
     # survives to /sys/fs/pstore across a warm reboot (TWRP's Reboot ->
-    # System). See sbin/tw_kmsglog.sh (v2, self-diagnosing). init's own
-    # action errors reach the kernel log live already.
-    write /dev/kmsg "pd2 rc: on boot fired"
+    # System). See sbin/tw_kmsglog.sh (v3). The v2 in-action write
+    # breadcrumbs were dropped: init's kmsg writes all lose the race
+    # with ueventd's /dev/kmsg node creation (init's own service-exit
+    # logging fails the same way — no init line ever reached the v5
+    # pstore capture); tw_kmsglog v3 waits for the node instead.
     start tw_kmsglog
 
 on fs && property:ro.debuggable=0
@@ -93,6 +111,16 @@ on post-fs
     symlink /dev/block/mapper/pl_b /dev/block/by-name/preloader_raw_b
     symlink /dev/block/mapper/pl_a /dev/block/platform/bootdevice/by-name/preloader_raw_a
     symlink /dev/block/mapper/pl_b /dev/block/platform/bootdevice/by-name/preloader_raw_b
+
+service keymaster-4-1 /system/bin/android.hardware.keymaster@4.1-service
+    user root
+    group root
+    disabled
+    # Mandatory like every service in the packed ramdisk: without a
+    # seclabel init refuses to start the service while SELinux is enabled
+    # (even permissive). u:r:recovery:s0 is the domain the GUI binary and
+    # the hwservicemanager/boot/health services already run under.
+    seclabel u:r:recovery:s0
 
 service tw_kmsglog /system/bin/sh /sbin/tw_kmsglog.sh
     user root
