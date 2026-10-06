@@ -21,17 +21,25 @@ on early-init
     mkdir /dev/dri/card0
 
 on init
-    # Guarantee adb at boot, independent of the GUI (which may freeze or
-    # render unreadable). This kernel keeps the legacy gadget interface
-    # /sys/class/android_usb/android0 (verified on-device), so:
-    #   configfs=0 + persist.sys.usb.config=adb
-    # makes init.usb.rc's on-boot propagation set sys.usb.config=adb, and
-    # its legacy handler configure android0 and start adbd before/parallel
-    # to any GUI startup. persist.* only stays in RAM here: /data is not
-    # mounted at on init, so the running system is not affected.
-    # Trade-off: no mtp,adb handler on the legacy path, MTP unavailable.
-    setprop sys.usb.configfs 0
+    # adb over USB, independent of the GUI. This kernel's legacy gadget
+    # interface /sys/class/android_usb/android0 is config-less (state only:
+    # no enable/functions/idVendor/f_ffs nodes), so configfs=0 leaves every
+    # gadget write failing and USB never enumerated — that is how Round A's
+    # adb died. USB on this kernel is configfs-only: the running system
+    # keeps /config/usb_gadget/g1 bound to UDC usb0 and the stock recovery
+    # ramdisk itself sets configfs=1 in this very section. Chain with
+    # configfs=1: on fs mounts configfs + functionfs and builds g1 +
+    # ffs.adb; ro.debuggable=1 (TWRP default.prop) sets sys.usb.config=adb
+    # on fs, which starts adbd; adbd raises sys.usb.ffs.ready=1 and the hw
+    # handler then links ffs.adb into configs/b.1 and writes
+    # ${sys.usb.controller} into g1/UDC. Recovery has no USB HAL to set
+    # that prop (the cmdline carries no androidboot.usb.controller), so set
+    # it here: usb0 is the only UDC (verified via /sys/class/udc).
+    # persist.* stays in RAM only: /data is not mounted at on init, so the
+    # running system is not affected.
+    setprop sys.usb.configfs 1
     setprop sys.usb.ffs.aio_compat 1
+    setprop sys.usb.controller usb0
     setprop persist.sys.usb.config adb
 
     # Second leg of the fbdev force-out above: if the early-init mkdir
@@ -41,6 +49,13 @@ on init
     # the DRM backend would be skipped anyway.
     wait /dev/dri/card0 10
     rm /dev/dri/card0
+
+on boot
+    # No-PC diagnostics: 35s in, dump TWRP's log into the kernel ring so
+    # it survives to /sys/fs/pstore across a warm reboot (TWRP's Reboot ->
+    # System). See sbin/tw_kmsglog.sh; init's own action errors reach the
+    # kernel log live already.
+    start tw_kmsglog
 
 on fs && property:ro.debuggable=0
     # distinguish USB shoulde connect or not, i.e. CDP vs SDP
@@ -71,3 +86,9 @@ on post-fs
     symlink /dev/block/mapper/pl_b /dev/block/by-name/preloader_raw_b
     symlink /dev/block/mapper/pl_a /dev/block/platform/bootdevice/by-name/preloader_raw_a
     symlink /dev/block/mapper/pl_b /dev/block/platform/bootdevice/by-name/preloader_raw_b
+
+service tw_kmsglog /system/bin/sh /sbin/tw_kmsglog.sh
+    user root
+    group root
+    disabled
+    oneshot
