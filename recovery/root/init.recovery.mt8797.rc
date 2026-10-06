@@ -1,6 +1,25 @@
 import /init.recovery.project.rc
 import /init.recovery.usb.rc
 
+on early-init
+    # Force TWRP onto the fbdev graphics backend (Round B screen fix).
+    # The upstream (2025-01-30, "import layer topology support from CLO")
+    # minuitwrp DRM backend is a Qualcomm port that splits the framebuffer
+    # into DEFAULT_NUM_LMS=2 slices when the connector lacks the Qualcomm
+    # "mode_properties" topology blob. This MTK MT6893 kernel exposes no
+    # such blob (probed live: connector props are CRTC_ID only), so the DRM
+    # path drives two 800px planes and only one slice reaches the panel —
+    # the left-half-UI/right-half-black symptom. Blocking /dev/dri/card0
+    # makes gr_init's open() fail and TWRP silently falls back to fbdev,
+    # whose geometry is verified on-device (vi.bpp=32, red.offset=16 ->
+    # BGRA canvas, 1600x2560, double buffered). This mkdir claims the node
+    # path before ueventd's coldboot can create it (a directory makes node
+    # creation fail permanently); if ueventd won that race, the wait+rm in
+    # the on init section below removes the node instead. Both legs run
+    # before the recovery service starts (on boot -> class_start default).
+    mkdir /dev/dri
+    mkdir /dev/dri/card0
+
 on init
     # Guarantee adb at boot, independent of the GUI (which may freeze or
     # render unreadable). This kernel keeps the legacy gadget interface
@@ -14,6 +33,14 @@ on init
     setprop sys.usb.configfs 0
     setprop sys.usb.ffs.aio_compat 1
     setprop persist.sys.usb.config adb
+
+    # Second leg of the fbdev force-out above: if the early-init mkdir
+    # lost the race to ueventd, the char node exists here — remove it.
+    # wait returns instantly when the path exists (dir or node); the 10s
+    # timeout only elapses if the DRM device never appeared, in which case
+    # the DRM backend would be skipped anyway.
+    wait /dev/dri/card0 10
+    rm /dev/dri/card0
 
 on fs && property:ro.debuggable=0
     # distinguish USB shoulde connect or not, i.e. CDP vs SDP
