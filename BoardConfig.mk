@@ -98,6 +98,19 @@ BOARD_HAS_NO_SELECT_BUTTON := true
 # up as a portrait framebuffer: 1600x2560, rotate=0. Touch panel-coords are
 # identical to display-coords (1600x2560), so recovery touch aligns natively
 # and no axis swap or offset is needed.
+#
+# Touch release: the himax driver ends every finger-up frame with
+# ABS_MT_TRACKING_ID -1 FIRST, then ABS_MT_TOUCH_MAJOR 0 and ABS_MT_PRESSURE 0
+# (captured on-device with getevent; 222/222 lifts carry this exact shape).
+# In minuitwrp/events.cpp the tracking-id case sets
+# touchReleaseOnNextSynReport=2 and use_tracking_id_negative_as_touch_release,
+# but the later zero TOUCH_MAJOR/PRESSURE events overwrite the flag back to 1,
+# so at SYN_REPORT BOTH release conditions are false: the GUI gets touch-down
+# and drag updates but never a finger-up (buttons highlight but never
+# activate, sliders never commit). Ignoring the tracking-id events drops that
+# poisoned flag pairing and lets release detection use the PRESSURE==0 path,
+# which this driver reports on every single lift.
+TW_IGNORE_ABS_MT_TRACKING_ID := true
 TW_THEME := portrait_hdpi
 TW_BRIGHTNESS_PATH := "/sys/class/leds/lcd-backlight/brightness"
 TW_MAX_BRIGHTNESS := 255
