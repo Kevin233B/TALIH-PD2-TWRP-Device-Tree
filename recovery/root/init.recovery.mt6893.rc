@@ -1,10 +1,19 @@
 import /init.recovery.project.rc
 import /init.recovery.usb.rc
-import /init.beanpod.rc
 
 on init
-    setprop sys.usb.configfs 1
+    # Guarantee adb at boot, independent of the GUI (which may freeze or
+    # render unreadable). This kernel keeps the legacy gadget interface
+    # /sys/class/android_usb/android0 (verified on-device), so:
+    #   configfs=0 + persist.sys.usb.config=adb
+    # makes init.usb.rc's on-boot propagation set sys.usb.config=adb, and
+    # its legacy handler configure android0 and start adbd before/parallel
+    # to any GUI startup. persist.* only stays in RAM here: /data is not
+    # mounted at on init, so the running system is not affected.
+    # Trade-off: no mtp,adb handler on the legacy path, MTP unavailable.
+    setprop sys.usb.configfs 0
     setprop sys.usb.ffs.aio_compat 1
+    setprop persist.sys.usb.config adb
 
 on fs && property:ro.debuggable=0
     # distinguish USB shoulde connect or not, i.e. CDP vs SDP

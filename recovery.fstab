@@ -5,8 +5,9 @@ system                        /system                ext4    ro,barrier=1,discar
 vendor                        /vendor                ext4    ro,barrier=1,discard      wait,slotselect,logical
 product                       /product               ext4    ro,barrier=1,discard      wait,slotselect,logical
 
-# Userdata (FBE v2, stock fstab parameters)
-/dev/block/by-name/userdata   /data                  f2fs    noatime,nosuid,nodev,discard,noflush_merge,fsync_mode=nobarrier,reserve_root=134217,resgid=1065,inlinecrypt    wait,check,formattable,quota,latemount,resize,reservedsize=128m,checkpoint=fs,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,keydirectory=/metadata/vold/metadata_encryption,fsverity
+# Userdata (FBE v2 on the device; mounted raw like the verified baseline -
+# crypto keywords here previously pushed TWRP into a blocking keymaster wait)
+/dev/block/by-name/userdata   /data                  f2fs    noatime,nosuid,nodev,discard    wait,formattable
 
 # FBE key directory (read-only)
 /dev/block/by-name/metadata   /metadata              ext4    ro,noatime,nosuid,nodev    wait

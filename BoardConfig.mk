@@ -93,37 +93,25 @@ TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/recovery.fstab
 TARGET_RECOVERY_PIXEL_FORMAT := RGBX_8888
 BOARD_HAS_NO_SELECT_BUTTON := true
 
-# Additional binaries & libraries needed for recovery
-TARGET_RECOVERY_DEVICE_MODULES += \
-    libkeymaster4 \
-    libkeymaster41 \
-    libpuresoftkeymasterdevice
-
 # Display
 # Native panel is a WQXGA Himax in-cell (hx83121a_cdot_csot_wqxga) that comes
 # up as a portrait framebuffer: 1600x2560, rotate=0. Touch panel-coords are
 # identical to display-coords (1600x2560), so recovery touch aligns natively
 # and no axis swap or offset is needed.
 TW_THEME := portrait_hdpi
-TW_SCREEN_WIDTH := 1600
-TW_SCREEN_HEIGHT := 2560
-TW_FRAMERATE := 60
 TW_BRIGHTNESS_PATH := "/sys/class/leds/lcd-backlight/brightness"
 TW_MAX_BRIGHTNESS := 255
 TW_DEFAULT_BRIGHTNESS := 160
 
-# Decryption
-# /sdcard lives on /data (FBE), so TWRP must treat it as data media
+# /sdcard lives on /data (FBE), so TWRP must treat it as data media.
+# /data mounts raw this round: the crypto keywords (fileencryption=,
+# checkpoint=fs, fsverity) in its fstab entry plus TW_INCLUDE_CRYPTO*
+# pushed TWRP's vold into a blocking wait for a keymaster HAL that the
+# ramdisk manifest declared but never provided (no impl, never started).
+# FBE decryption returns with the real /vendor/bin/hw keymaster@4.1
+# service (class early_hal) once boot-time adb diagnostics are in place.
 RECOVERY_SDCARD_ON_DATA := true
-TW_INCLUDE_CRYPTO := true
-TW_INCLUDE_CRYPTO_FBE := true
-TW_INCLUDE_FBE_METADATA_DECRYPT := true
-TW_USE_FSCRYPT_POLICY := 2
 BOARD_USES_METADATA_PARTITION := true
-TW_RECOVERY_ADDITIONAL_RELINK_LIBRARY_FILES += \
-    $(TARGET_OUT_SHARED_LIBRARIES)/libkeymaster4.so \
-    $(TARGET_OUT_SHARED_LIBRARIES)/libkeymaster41.so \
-    $(TARGET_OUT_SHARED_LIBRARIES)/libpuresoftkeymasterdevice.so
 
 # TWRP
 TW_USE_TOOLBOX := true
@@ -145,9 +133,11 @@ TW_EXCLUDE_SUPERSU := true
 # 温区实测: thermal_zone3 = mtktscpu (zone0 是电池 mtktsbattery)
 TW_CUSTOM_CPU_TEMP_PATH := "/sys/class/thermal/thermal_zone3/temp"
 TARGET_OTA_ASSERT_DEVICE := ls12_mt8797_wifi_64
-# USB: 本机内核保留老式 /sys/class/android_usb 接口(实测存在), 不设
-# TW_EXCLUDE_DEFAULT_USB_INIT, 让 TWRP 自带的 init.recovery.usb.rc 直接
-# 生效; 无需自定义 configfs rc, UMS lun 路径由 TWRP 自动探测
+# USB: adb 由 init 侧保证(见 init.recovery.mt6893/8797.rc 的 on init):
+# configfs=0 + persist.sys.usb.config=adb → boot 时 init.usb.rc 老式
+# android0 链自动配 gadget 并 start adbd, 与 GUI 死活无关(本机内核
+# /sys/class/android_usb/android0 实测存在)。老式链无 mtp,adb handler,
+# 本轮 MTP 不可用。不设 TW_EXCLUDE_DEFAULT_USB_INIT, 保留 AOSP usb rc。
 
 # Hack: prevent anti rollback
 PLATFORM_SECURITY_PATCH := 2099-12-31
