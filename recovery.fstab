@@ -1,49 +1,53 @@
-# TALIH-PD2 (ls12_mt8797_wifi_64)
-# All mounts are read-only: no formattable / wipeingui / flashimg anywhere.
+#<src>                        <mnt_point>            <type>  <mnt_flags and options>   <fs_mgr_flags>
 
-system                                     /system          ext4    ro,noatime                                               wait,slotselect,logical
-vendor                                     /vendor          ext4    ro,noatime                                               wait,slotselect,logical
-product                                    /product         ext4    ro,noatime                                               wait,slotselect,logical
+# Logical partitions
+system                        /system                ext4    ro,barrier=1,discard      wait,slotselect,logical
+vendor                        /vendor                ext4    ro,barrier=1,discard      wait,slotselect,logical
+product                       /product               ext4    ro,barrier=1,discard      wait,slotselect,logical
 
-/dev/block/by-name/userdata                /data            f2fs    ro,noatime,nosuid,nodev,discard,noflush_merge,fsync_mode=nobarrier,reserve_root=134217,resgid=1065,inlinecrypt    wait,latemount,checkpoint=fs,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,keydirectory=/metadata/vold/metadata_encryption
+# Userdata (FBE v2, stock fstab parameters)
+/dev/block/by-name/userdata   /data                  f2fs    noatime,nosuid,nodev,discard,noflush_merge,fsync_mode=nobarrier,reserve_root=134217,resgid=1065,inlinecrypt    wait,check,formattable,quota,latemount,resize,reservedsize=128m,checkpoint=fs,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,keydirectory=/metadata/vold/metadata_encryption,fsverity
 
-/dev/block/by-name/metadata                /metadata        ext4    ro,noatime,nosuid,nodev                                  wait
+# FBE key directory (read-only)
+/dev/block/by-name/metadata   /metadata              ext4    ro,noatime,nosuid,nodev    wait
 
-/dev/block/by-name/protect1                /mnt/vendor/protect_f    ext4    ro,noatime,nosuid,nodev                          wait
-/dev/block/by-name/protect2                /mnt/vendor/protect_s    ext4    ro,noatime,nosuid,nodev                          wait
-/dev/block/by-name/nvdata                  /mnt/vendor/nvdata       ext4    ro,noatime,nosuid,nodev                          wait
-/dev/block/by-name/nvcfg                   /mnt/vendor/nvcfg        ext4    ro,noatime,nosuid,nodev                          wait
-/dev/block/by-name/persist                 /mnt/vendor/persist      ext4    ro,noatime,nosuid,nodev                          wait
-/dev/block/by-name/oempersist              /mnt/oempersist          ext4    ro,noatime,nosuid,nodev                          wait
+# MTK calibration partitions (read-only)
+/dev/block/by-name/protect1       /mnt/vendor/protect_f    ext4    ro,noatime,nosuid,nodev    wait
+/dev/block/by-name/protect2       /mnt/vendor/protect_s    ext4    ro,noatime,nosuid,nodev    wait
+/dev/block/by-name/nvdata         /mnt/vendor/nvdata       ext4    ro,noatime,nosuid,nodev    wait
+/dev/block/by-name/nvcfg          /mnt/vendor/nvcfg        ext4    ro,noatime,nosuid,nodev    wait
+/dev/block/by-name/persist        /mnt/vendor/persist      ext4    ro,noatime,nosuid,nodev    wait
+/dev/block/by-name/oempersist     /mnt/oempersist          ext4    ro,noatime,nosuid,nodev    wait
 
-/dev/block/by-name/boot                    /boot            emmc    defaults    slotselect
-/dev/block/by-name/dtbo                    /dtbo            emmc    defaults    slotselect
-/dev/block/by-name/init_boot               /init_boot       emmc    defaults    slotselect
-/dev/block/by-name/vendor_boot             /vendor_boot     emmc    defaults    slotselect
-/dev/block/by-name/vbmeta                  /vbmeta          emmc    defaults    slotselect
-/dev/block/by-name/vbmeta_system           /vbmeta_system   emmc    defaults    slotselect
-/dev/block/by-name/vbmeta_vendor           /vbmeta_vendor   emmc    defaults    slotselect
-/dev/block/by-name/lk                      /bootloader      emmc    defaults    slotselect
-/dev/block/by-name/logo                    /logo            emmc    defaults    slotselect
-/dev/block/by-name/tee                     /tee             emmc    defaults    slotselect
-/dev/block/by-name/gz                      /gz              emmc    defaults    slotselect
-/dev/block/by-name/scp                     /scp             emmc    defaults    slotselect
-/dev/block/by-name/sspm                    /sspm            emmc    defaults    slotselect
-/dev/block/by-name/mcupm                   /mcupm           emmc    defaults    slotselect
-/dev/block/by-name/dpm                     /dpm             emmc    defaults    slotselect
-/dev/block/by-name/spmfw                   /spmfw           emmc    defaults    slotselect
-/dev/block/by-name/pi_img                  /pi_img          emmc    defaults    slotselect
-/dev/block/by-name/cam_vpu1                /cam_vpu1        emmc    defaults    slotselect
-/dev/block/by-name/cam_vpu2                /cam_vpu2        emmc    defaults    slotselect
-/dev/block/by-name/cam_vpu3                /cam_vpu3        emmc    defaults    slotselect
+# Raw partitions (backup only)
+/dev/block/by-name/boot            /boot            emmc    defaults    slotselect
+/dev/block/by-name/dtbo            /dtbo            emmc    defaults    slotselect
+/dev/block/by-name/init_boot       /init_boot       emmc    defaults    slotselect
+/dev/block/by-name/vendor_boot     /vendor_boot     emmc    defaults    slotselect
+/dev/block/by-name/vbmeta          /vbmeta          emmc    defaults    slotselect
+/dev/block/by-name/vbmeta_system   /vbmeta_system   emmc    defaults    slotselect
+/dev/block/by-name/vbmeta_vendor   /vbmeta_vendor   emmc    defaults    slotselect
+/dev/block/by-name/lk              /bootloader      emmc    defaults    slotselect
+/dev/block/by-name/logo            /logo            emmc    defaults    slotselect
+/dev/block/by-name/tee             /tee             emmc    defaults    slotselect
+/dev/block/by-name/gz              /gz              emmc    defaults    slotselect
+/dev/block/by-name/scp             /scp             emmc    defaults    slotselect
+/dev/block/by-name/sspm            /sspm            emmc    defaults    slotselect
+/dev/block/by-name/mcupm           /mcupm           emmc    defaults    slotselect
+/dev/block/by-name/dpm             /dpm             emmc    defaults    slotselect
+/dev/block/by-name/spmfw           /spmfw           emmc    defaults    slotselect
+/dev/block/by-name/pi_img          /pi_img          emmc    defaults    slotselect
+/dev/block/by-name/cam_vpu1        /cam_vpu1        emmc    defaults    slotselect
+/dev/block/by-name/cam_vpu2        /cam_vpu2        emmc    defaults    slotselect
+/dev/block/by-name/cam_vpu3        /cam_vpu3        emmc    defaults    slotselect
 
-/dev/block/by-name/frp                     /persistent      emmc    defaults    defaults
-/dev/block/by-name/nvram                   /nvram           emmc    defaults    defaults
-/dev/block/by-name/proinfo                 /proinfo         emmc    defaults    defaults
-/dev/block/by-name/seccfg                  /seccfg          emmc    defaults    defaults
-/dev/block/by-name/expdb                   /expdb           emmc    defaults    defaults
-/dev/block/by-name/boot_para               /boot_para       emmc    defaults    defaults
-/dev/block/by-name/misc                    /misc            emmc    defaults    defaults
-/dev/block/by-name/otp                     /otp             emmc    defaults    defaults
-/dev/block/by-name/flashinfo               /flashinfo       emmc    defaults    defaults
-/dev/block/by-name/tal_sec                 /tal_sec         emmc    defaults    defaults
+/dev/block/by-name/frp             /persistent      emmc    defaults    defaults
+/dev/block/by-name/nvram           /nvram           emmc    defaults    defaults
+/dev/block/by-name/proinfo         /proinfo         emmc    defaults    defaults
+/dev/block/by-name/seccfg          /seccfg          emmc    defaults    defaults
+/dev/block/by-name/expdb           /expdb           emmc    defaults    defaults
+/dev/block/by-name/boot_para       /boot_para       emmc    defaults    defaults
+/dev/block/by-name/misc            /misc            emmc    defaults    defaults
+/dev/block/by-name/otp             /otp             emmc    defaults    defaults
+/dev/block/by-name/flashinfo       /flashinfo       emmc    defaults    defaults
+/dev/block/by-name/tal_sec         /tal_sec         emmc    defaults    defaults

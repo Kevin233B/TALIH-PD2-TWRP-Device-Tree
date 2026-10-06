@@ -24,20 +24,17 @@
 
 ## Data 解密（FBE v2）
 
-按 rosemary（MT6785，同为 FBE v2 + metadata keydirectory）等成熟设备树的方式配置：
-
-- BoardConfig：`TW_INCLUDE_CRYPTO` + `TW_INCLUDE_CRYPTO_FBE` + `TW_INCLUDE_FBE_METADATA_DECRYPT` + `TW_USE_FSCRYPT_POLICY := 2`，并 relink 软件 keymaster 库（`libkeymaster4` / `libkeymaster41` / `libpuresoftkeymasterdevice`）；
-- fstab 的 `/data` 行带完整 `fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,keydirectory=/metadata/vold/metadata_encryption`（与本机原厂 first-stage fstab 一致），`/metadata` 挂载后 TWRP 即可读取密钥目录尝试解密；
+- fstab 的 `/data` 行使用与本机原厂 first-stage fstab **逐字一致**的参数：`fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,keydirectory=/metadata/vold/metadata_encryption,fsverity`（chopin/MT6893 同 SoC 设备树采用完全相同的参数）；
+- BoardConfig：`TW_INCLUDE_CRYPTO` + `TW_INCLUDE_CRYPTO_FBE` + `TW_INCLUDE_FBE_METADATA_DECRYPT` + `TW_USE_FSCRYPT_POLICY := 2` + `BOARD_USES_METADATA_PARTITION`，并 relink 软件 keymaster 库（`libkeymaster4` / `libkeymaster41` / `libpuresoftkeymasterdevice`），写法与 rosemary（MT6785，FBE v2 + metadata keydirectory，验证可解密）一致；
+- `/metadata` 以只读方式挂载，TWRP 从中读取密钥目录尝试解密；
 - 密钥由 TEE 硬件绑定，recovery 内只能用软件 keymaster 尝试；能否成功取决于设备的密钥策略，无法保证。
 
-## 只读保护（禁止写入 / 允许读取）
+## 分区保护策略
 
-fstab 全表**只读**：
-
-- 所有可挂载分区（system / vendor / product / metadata / persist / nvdata / nvcfg / protect / oempersist / data）一律 `ro` 挂载；
-- 无 `formattable`（不能格式化）、无 `check`（不跑 fsck 修复，避免修复性写入）；
-- 无 `wipeingui`、无 `flashimg`（GUI 无任何写入/刷写入口）；
-- 裸分区（boot / dtbo / tee / lk 等）仅保留 Backup（读取）能力。
+- **允许正常使用**：`/data` 读写（刷 NikGapps、wipe dalvik/art 需要）；system/vendor/product 按官方 TWRP 树写法 `ro` 挂载——不影响刷 zip（安装脚本会自行 remount rw）；
+- **只读保护**：`/metadata`（FBE 密钥目录，误写=永久丢 /data）、MTK 校准分区（persist / nvdata / nvcfg / protect1/2 / oempersist）全部 `ro` 挂载，且无 `formattable`；
+- **无任何 GUI 写入入口**：全表无 `flashimg`、无 `wipeingui`；裸分区（boot / dtbo / tee / lk 等）仅保留 Backup（读取）能力；
+- 刷写分区请继续用 fastboot / dd（与你目前双槽 dd 的用法一致）。
 
 ## Boot 镜像布局（MTK LK 私有加载方式）
 
@@ -73,7 +70,11 @@ mka bootimage recoveryimage -j$(nproc)
 
 ## fstab 说明
 
-`recovery.fstab` 采用 AOSP fstab 格式（同 rosemary），分区名按设备实测 `/dev/block/by-name` 修正：真实分区为 A/B 后缀命名（`tee_a/b`、`lk_a/b`、`sspm_a/b`、`dtbo_a/b` 等），由 `slotselect` 处理；无 modem 分区（WiFi-only 机型）。
+`recovery.fstab` 采用 AOSP 五列格式（同官方 TeamWin 树与 rosemary），分区名按设备实测 `/dev/block/by-name` 修正：真实分区为 A/B 后缀命名（`tee_a/b`、`lk_a/b`、`sspm_a/b`、`dtbo_a/b` 等），由 `slotselect` 处理；无 modem 分区（WiFi-only 机型）。
+
+## Boot control
+
+A/B 槽位管理 HAL 从 `bootctrl/` 源码编译（`android.hardware.boot@1.2-mtkimpl.recovery`），写法同 rosemary / chopin（MT6893）；twrpdtgen 模板生成的 `PRODUCT_STATIC_BOOT_CONTROL_HAL` 在 twrp-12.1 已废弃，已移除。
 
 ## 致谢
 
