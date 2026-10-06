@@ -61,12 +61,15 @@ repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifes
 repo sync -c -j$(nproc) --force-sync --no-clone-bundle --no-tags
 # 本设备树放到 device/alps/ls12_mt8797_wifi_64
 . build/envsetup.sh
-lunch omni_ls12_mt8797_wifi_64-eng
-mka bootimage recoveryimage -j$(nproc)
-# 之后按 build.yml 的 "Assemble boot image" 步骤组装出可刷写的 boot-twrp.img
+lunch twrp_ls12_mt8797_wifi_64-eng
+mka bootimage -j$(nproc)
+# 产物 out/target/product/ls12_mt8797_wifi_64/boot.img
+# （recovery-as-boot: recoveryimage 目标为空, bootimage 即最终 TWRP 镜像;
+#   MTK boot 布局含 --dtb 已由 BoardConfig 的 BOARD_MKBOOTIMG_ARGS 传递,
+#   标准规则直出可刷写镜像。dd 刷写前建议填充到 64MiB, 见 build.yml）
 ```
 
-产物：`boot-twrp.img`（recovery-as-boot，fastboot flash boot 或 dd 到 boot_a/boot_b）。
+产物：`boot.img`（recovery-as-boot，fastboot flash boot 或 dd 到 boot_a/boot_b；CI 会校验字节布局并填充到 64MiB 后作为 `boot-twrp.img` 上传）。也可用通用 TWRP 构建 Action（如 [Action-TWRP-Builder](https://github.com/Kevin233B/Action-TWRP-Builder)）构建本树，注意 `BUILD_TARGET` 填 `boot`（recovery-as-boot 下 `recovery` 目标为空）。
 
 ## fstab 说明
 

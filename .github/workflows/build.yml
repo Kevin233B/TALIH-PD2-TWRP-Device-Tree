@@ -61,42 +61,33 @@ jobs:
           grep -n "rsync -a --exclude=sdcard" ~/twrpsrc/build/make/core/Makefile | head -2
           ls -la ~/twrpsrc/device/alps/ls12_mt8797_wifi_64
 
-      - name: Build recovery ramdisk
+      - name: Build boot image
         run: |
           cd ~/twrpsrc
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL=C
           . build/envsetup.sh
           lunch twrp_ls12_mt8797_wifi_64-eng
-          # AOSP 12.1 mkbootimg unconditionally requires a non-empty DTB for
-          # header v2, so the stock bootimage/recoveryimage packaging rules
-          # cannot succeed without --dtb. Build only the ramdisk plus the host
-          # mkbootimg tool; the final image is assembled in the next step.
-          mka ramdisk-recovery.img mkbootimg -j$(nproc --all)
+          # BOARD_USES_RECOVERY_AS_BOOT: the recoveryimage target is empty and
+          # bootimage builds the final TWRP image. The device tree passes the
+          # full MTK boot layout (incl. --dtb) via BOARD_MKBOOTIMG_ARGS, so
+          # the standard rule produces the flashable image directly — same
+          # path any generic TWRP builder action would take.
+          mka bootimage -j$(nproc --all)
         timeout-minutes: 150
 
-      - name: Assemble boot image (MTK LK layout)
+      - name: Verify & pad boot image
         run: |
           cd ~/twrpsrc
-          ls -la out/target/product/ls12_mt8797_wifi_64/ | grep -E "recovery|ramdisk|boot"
           DT=out/target/product/ls12_mt8797_wifi_64
-          DEVICE=device/alps/ls12_mt8797_wifi_64
-          out/host/linux-x86/bin/mkbootimg \
-            --kernel $DEVICE/prebuilt/Image.gz \
-            --ramdisk $DT/ramdisk-recovery.img \
-            --dtb $DEVICE/prebuilt/dtb.img \
-            --base 0x40000000 --kernel_offset 0x00080000 \
-            --ramdisk_offset 0x11100000 --tags_offset 0x07c80000 \
-            --dtb_offset 0x07c80000 \
-            --header_version 2 --pagesize 2048 \
-            --cmdline "bootopt=64S3,32N2,64N2 buildvariant=user" \
-            --os_version 12.0.0 --os_patch_level 2023-06 \
-            --output $GITHUB_WORKSPACE/boot-twrp.img
+          ls -la $DT/ | grep -E "boot|ramdisk|recovery"
+          cp $DT/boot.img $GITHUB_WORKSPACE/boot-twrp.img
           # 运行中镜像实测布局: header v2 携带真实 dtb_size, MTK DTB 容器
           # (d7b7ab1e 魔数, 与 prebuilt/dtb.img 逐字节一致) 摆在标准 v2 dtb
           # 偏移 page*(1+kernel_pages+ramdisk_pages), dtb_addr=0x47c80000。
-          # mkbootimg --dtb 直出同款布局; 此处仅做字节校验并填充到 boot
-          # 分区大小 64MiB (dd 刷写安全)
+          # AOSP 规则经 BoardConfig 的 BOARD_MKBOOTIMG_ARGS 已带 --dtb 直出
+          # 同款布局; 此处仅做字节校验并填充到 boot 分区大小 64MiB
+          # (dd 刷写安全)
           python3 - <<'EOF'
           import os, struct
           ws = os.environ['GITHUB_WORKSPACE']
@@ -120,7 +111,7 @@ jobs:
           assert len(boot) <= part, 'image exceeds boot partition'
           out = boot + b'\0' * (part - len(boot))
           open(src,'wb').write(out)
-          print(f'assembled: kernel={kernel_size} ramdisk={ramdisk_size} dtb={dtb_size} total={len(out)}')
+          print(f'verified: kernel={kernel_size} ramdisk={ramdisk_size} dtb={dtb_size} total={len(out)}')
           EOF
           ls -la $GITHUB_WORKSPACE/boot-twrp.img
 

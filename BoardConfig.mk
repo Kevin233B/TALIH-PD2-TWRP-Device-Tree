@@ -55,12 +55,19 @@ BOARD_BOOT_HEADER_VERSION := 2
 BOARD_BOOTIMG_HEADER_VERSION := 2
 BOARD_KERNEL_PAGESIZE := 2048
 BOARD_FLASH_BLOCK_SIZE := 131072
+# AOSP 12.1 mkbootimg rejects header v2 images without a non-empty DTB, so
+# the DTB is passed explicitly here (flows into the internal packaging rule).
+# The MTK DTB container (prebuilt/dtb.img, 206433 bytes) is byte-identical to
+# the one embedded in the running stock image; it sits at the standard v2
+# offset and dtb_addr = base + 0x07c80000 = 0x47c80000, matching stock.
 BOARD_MKBOOTIMG_ARGS += \
     --header_version 2 \
     --base $(BOARD_KERNEL_BASE) \
     --kernel_offset $(BOARD_KERNEL_OFFSET) \
     --ramdisk_offset $(BOARD_RAMDISK_OFFSET) \
-    --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
+    --tags_offset $(BOARD_KERNEL_TAGS_OFFSET) \
+    --dtb $(DEVICE_PATH)/prebuilt/dtb.img \
+    --dtb_offset 0x07c80000
 
 # Partitions
 BOARD_BOOTIMAGE_PARTITION_SIZE := 67108864
