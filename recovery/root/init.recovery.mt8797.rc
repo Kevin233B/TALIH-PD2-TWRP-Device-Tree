@@ -62,6 +62,9 @@ on init
     # aborts the remaining dump. Written here in the init stage so it
     # precedes keystore2's own late-init start. "arm" raises init's core
     # rlimit as belt-and-suspenders (harmless if it fails).
+    # The packer normalizes sbin/* to mode 644, so restore the exec bit
+    # here; the kernel's coredump pipe helper cannot exec a 644 file.
+    chmod 0755 /sbin/corehead
     write /proc/sys/kernel/core_pattern "|/sbin/corehead pipe"
     exec u:r:recovery:s0 root root -- /sbin/corehead arm
 
