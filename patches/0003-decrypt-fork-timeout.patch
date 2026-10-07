@@ -1,0 +1,59 @@
+diff --git a/partitionmanager.cpp b/partitionmanager.cpp
+--- a/partitionmanager.cpp
++++ b/partitionmanager.cpp
+@@ -34,6 +34,7 @@
+ #include <iostream>
+ #include <iomanip>
+ #include <sys/wait.h>
++#include <signal.h>
+ #include <linux/fs.h>
+ #include <sys/mount.h>
+ #include <sys/poll.h>
+@@ -596,7 +597,46 @@ void TWPartitionManager::Decrypt_Data() {
+ 			Set_Crypto_Type("file");
+ #ifdef TW_INCLUDE_FBE_METADATA_DECRYPT
+ #ifdef USE_FSCRYPT
+-			if (android::vold::fscrypt_mount_metadata_encrypted(Decrypt_Data->Actual_Block_Device, Decrypt_Data->Mount_Point, false, false, Decrypt_Data->Current_File_System, TWFunc::Path_Exists(additional_fstab) ? additional_fstab : "")) {
++			// Run the blocking vold metadata decryption in a child process:
++			// the vold -> keystore2 -> keymaster(4.x) chain ends in a
++			// blocking wait (AServiceManager_waitForService / HIDL
++			// getService retry) whenever any link of the chain fails to
++			// come up, which used to wedge the recovery UI at the
++			// splash screen forever. Wait up to 60s; on timeout kill the
++			// child and continue without decryption, and dump the
++			// diagnostic snapshot (tw_kmsglog.sh dump) so the failure is
++			// readable from the console ring / misc blob.
++			bool vold_ok = false;
++			pid_t dec_pid = fork();
++			if (dec_pid == 0) {
++				bool ok = android::vold::fscrypt_mount_metadata_encrypted(Decrypt_Data->Actual_Block_Device, Decrypt_Data->Mount_Point, false, false, Decrypt_Data->Current_File_System, TWFunc::Path_Exists(additional_fstab) ? additional_fstab : "");
++				_exit(ok ? 0 : 1);
++			}
++			if (dec_pid > 0) {
++				int dec_status = 0;
++				int dec_waited = 0;
++				while (dec_waited < 600) {
++					pid_t dec_r = waitpid(dec_pid, &dec_status, WNOHANG);
++					if (dec_r != 0)
++						break;
++					usleep(100000);
++					dec_waited++;
++				}
++				if (dec_waited >= 600) {
++					LOGINFO("Decrypt_Data: metadata decryption timed out after 60s (keystore2/keymaster HAL never became ready); continuing without decryption\n");
++					kill(dec_pid, SIGKILL);
++					waitpid(dec_pid, &dec_status, 0);
++					TWFunc::Exec_Cmd("/system/bin/sh /sbin/tw_kmsglog.sh dump", false);
++				} else if (WIFEXITED(dec_status) && WEXITSTATUS(dec_status) == 0) {
++					vold_ok = true;
++				} else {
++					LOGINFO("Decrypt_Data: metadata decryption call failed or was killed; continuing without decryption\n");
++					TWFunc::Exec_Cmd("/system/bin/sh /sbin/tw_kmsglog.sh dump", false);
++				}
++			} else {
++				LOGINFO("Decrypt_Data: fork failed (%d); continuing without decryption\n", errno);
++			}
++			if (vold_ok) {
+ 				std::string crypto_blkdev = android::base::GetProperty("ro.crypto.fs_crypto_blkdev", "error");
+ 				Decrypt_Data->Decrypted_Block_Device = crypto_blkdev;
+ 				LOGINFO("Successfully decrypted metadata encrypted data partition with new block device: '%s'\n", crypto_blkdev.c_str());

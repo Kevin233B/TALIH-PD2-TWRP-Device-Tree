@@ -73,6 +73,13 @@ on boot
     # explicit-start + root pattern mirrors hwservicemanager itself.
     start keymaster-4-1
 
+    # keystore2 is where A12 vold actually performs its FBE/metadata key
+    # operations (vold -> keystore2 -> keymaster; both hops block until
+    # the service registers). TWRP's own keystore2.rc starts it at
+    # late-init — start it again here (init ignores the duplicate) so it
+    # is guaranteed up before the recovery binary reaches Decrypt_Data().
+    start keystore2
+
     # No-PC diagnostics: mirror TWRP's log into the kernel ring so it
     # survives to /sys/fs/pstore across a warm reboot (TWRP's Reboot ->
     # System). See sbin/tw_kmsglog.sh (v3). The v2 in-action write
