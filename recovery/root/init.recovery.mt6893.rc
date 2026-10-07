@@ -52,6 +52,19 @@ on init
     wait /dev/dri/card0 10
     rm /dev/dri/card0
 
+    # v10.7 crash forensics (TEMPORARY scaffolding; tear down once /data
+    # decryption works): any fatal-signal coredump (e.g. keystore2's
+    # SIGBUS) is piped by the kernel to /sbin/corehead, which stores the
+    # first 64 KiB of the core (ELF header + notes + per-thread registers)
+    # at misc offset 64 KiB (approved dead zone 64..384 KiB). Pipe dumps
+    # are not subject to RLIMIT_CORE=0 (kernel: "core limits are
+    # irrelevant to pipes"); corehead exits after the cap so the kernel
+    # aborts the remaining dump. Written here in the init stage so it
+    # precedes keystore2's own late-init start. "arm" raises init's core
+    # rlimit as belt-and-suspenders (harmless if it fails).
+    write /proc/sys/kernel/core_pattern "|/sbin/corehead pipe"
+    exec u:r:recovery:s0 root root -- /sbin/corehead arm
+
 on boot
     # Keymaster 4.1 for /data decryption (Round C). The service is the
     # byte-identical real vendor binary with its full readelf-verified
@@ -71,6 +84,10 @@ on boot
     # vendor rc (class early_hal, user system drmrpc) is not reusable
     # verbatim: this recovery only starts the default class, and the
     # explicit-start + root pattern mirrors hwservicemanager itself.
+    #
+    # v10.7: re-assert the crash forensics pipe (harmless if unchanged).
+    write /proc/sys/kernel/core_pattern "|/sbin/corehead pipe"
+
     start keymaster-4-1
 
     # keystore2 is where A12 vold actually performs its FBE/metadata key
