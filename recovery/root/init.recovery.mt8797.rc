@@ -64,7 +64,12 @@ on init
     # rlimit as belt-and-suspenders (harmless if it fails).
     # The packer normalizes sbin/* to mode 644, so restore the exec bit
     # here; the kernel's coredump pipe helper cannot exec a 644 file.
+    # This kernel builds with CONFIG_STATIC_USERMODEHELPER=y and
+    # STATIC_USERMODEHELPER_PATH=/system_ext/bin/aee_core_forwarder, so
+    # the kernel substitutes that path for any coredump pipe; a
+    # byte-identical copy of corehead is installed there too.
     chmod 0755 /sbin/corehead
+    chmod 0755 /system_ext/bin/aee_core_forwarder
     write /proc/sys/kernel/core_pattern "|/sbin/corehead pipe"
     exec u:r:recovery:s0 root root -- /sbin/corehead arm
 
