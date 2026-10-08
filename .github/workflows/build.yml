@@ -75,6 +75,25 @@ jobs:
           git apply $GITHUB_WORKSPACE/patches/*.patch
           grep -n "touchReleaseOnNextSynReport != 2" minuitwrp/events.cpp
 
+      - name: Patch vold source (recovery-side fixes)
+        # Recovery-only fixes for the metadata-decrypt child, applied to the
+        # TeamWin fork of system/vold:
+        #  - Checkpoint.cpp: pin IBootControl to nullptr. The boot HAL is a
+        #    lazy service that cannot start in recovery; the client-side
+        #    getService() then retries it once per second forever, which
+        #    wedged decryption right before the /data mount (visible as
+        #    endless "trying to start it as a lazy HAL" spam until the
+        #    wait-timeout fired).
+        #  - KeyStorage.cpp: restore the upstream nullopt guard that the
+        #    teamwin fork commented out; without it the following deref is
+        #    UB whenever begin() succeeded without a key upgrade.
+        run: |
+          cd ~/twrpsrc/system/vold
+          git apply --check $GITHUB_WORKSPACE/patches-vold/*.patch
+          git apply $GITHUB_WORKSPACE/patches-vold/*.patch
+          grep -n "never query the boot HAL" Checkpoint.cpp | head -4
+          grep -n "restore the upstream guard" KeyStorage.cpp
+
       - name: Build boot image
         run: |
           cd ~/twrpsrc

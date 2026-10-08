@@ -1,4 +1,5 @@
 diff --git a/partitionmanager.cpp b/partitionmanager.cpp
+index 2766b4c..ed90c4d 100755
 --- a/partitionmanager.cpp
 +++ b/partitionmanager.cpp
 @@ -34,6 +34,7 @@
@@ -9,7 +10,7 @@ diff --git a/partitionmanager.cpp b/partitionmanager.cpp
  #include <linux/fs.h>
  #include <sys/mount.h>
  #include <sys/poll.h>
-@@ -596,7 +597,46 @@ void TWPartitionManager::Decrypt_Data() {
+@@ -596,7 +597,49 @@ void TWPartitionManager::Decrypt_Data() {
  			Set_Crypto_Type("file");
  #ifdef TW_INCLUDE_FBE_METADATA_DECRYPT
  #ifdef USE_FSCRYPT
@@ -19,7 +20,7 @@ diff --git a/partitionmanager.cpp b/partitionmanager.cpp
 +			// blocking wait (AServiceManager_waitForService / HIDL
 +			// getService retry) whenever any link of the chain fails to
 +			// come up, which used to wedge the recovery UI at the
-+			// splash screen forever. Wait up to 60s; on timeout kill the
++			// splash screen forever. Wait up to 120s, probing the stuck child at 60s and just before the kill; on timeout kill the
 +			// child and continue without decryption, and dump the
 +			// diagnostic snapshot (tw_kmsglog.sh dump) so the failure is
 +			// readable from the console ring / misc blob.
@@ -32,15 +33,18 @@ diff --git a/partitionmanager.cpp b/partitionmanager.cpp
 +			if (dec_pid > 0) {
 +				int dec_status = 0;
 +				int dec_waited = 0;
-+				while (dec_waited < 600) {
++				while (dec_waited < 1200) {
 +					pid_t dec_r = waitpid(dec_pid, &dec_status, WNOHANG);
 +					if (dec_r != 0)
 +						break;
++					if (dec_waited == 600)
++						TWFunc::Exec_Cmd("/system/bin/sh /sbin/twrp-hangprobe.sh " + std::to_string(dec_pid), false);
 +					usleep(100000);
 +					dec_waited++;
 +				}
-+				if (dec_waited >= 600) {
-+					LOGINFO("Decrypt_Data: metadata decryption timed out after 60s (keystore2/keymaster HAL never became ready); continuing without decryption\n");
++				if (dec_waited >= 1200) {
++					LOGINFO("Decrypt_Data: metadata decryption timed out after 120s (still blocked in the vold/keymaster/HAL chain); continuing without decryption\n");
++					TWFunc::Exec_Cmd("/system/bin/sh /sbin/twrp-hangprobe.sh " + std::to_string(dec_pid), false);
 +					kill(dec_pid, SIGKILL);
 +					waitpid(dec_pid, &dec_status, 0);
 +					TWFunc::Exec_Cmd("/system/bin/sh /sbin/tw_kmsglog.sh dump", false);
