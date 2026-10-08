@@ -93,6 +93,7 @@ jobs:
           git apply $GITHUB_WORKSPACE/patches-vold/*.patch
           grep -n "never query the boot HAL" Checkpoint.cpp | head -4
           grep -n "restore the upstream guard" KeyStorage.cpp
+          grep -n "find or create device keyring" KeyUtil.cpp
 
       - name: Build boot image
         run: |

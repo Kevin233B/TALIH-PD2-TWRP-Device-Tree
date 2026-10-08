@@ -53,3 +53,26 @@ index 51fc4f6..dd05ac6 100644
  
      // if (already_upgraded) {
      //     LOG(ERROR) << "Unexpected case; already-upgraded key " << upgraded_blob_file
+diff --git a/KeyUtil.cpp b/KeyUtil.cpp
+index 9273564..176667a 100644
+--- a/KeyUtil.cpp
++++ b/KeyUtil.cpp
+@@ -149,8 +149,16 @@ static std::string buildLegacyKeyName(const std::string& prefix, const std::stri
+ static bool fscryptKeyring(key_serial_t* device_keyring) {
+     *device_keyring = keyctl_search(KEY_SPEC_SESSION_KEYRING, "keyring", "fscrypt", 0);
+     if (*device_keyring == -1) {
+-        PLOG(ERROR) << "Unable to find device keyring";
+-        return false;
++        // TWRP recovery: normally init creates the "fscrypt" keyring very
++        // early (FscryptInstallKeyring in init's fscrypt_init_extensions.cpp);
++        // the cut-down recovery init does not, so installing DE/CE keys fails
++        // at installProvisioningKey(). Create it on demand, mirroring init.
++        *device_keyring = add_key("keyring", "fscrypt", 0, 0, KEY_SPEC_SESSION_KEYRING);
++        if (*device_keyring == -1) {
++            PLOG(ERROR) << "Unable to find or create device keyring";
++            return false;
++        }
++        LOG(INFO) << "Created device keyring " << *device_keyring << " in process " << getpid();
+     }
+     return true;
+ }
