@@ -195,7 +195,13 @@ TARGET_OTA_ASSERT_DEVICE := ls12_mt8797_wifi_64
 # /sys/class/android_usb/android0 实测存在)。老式链无 mtp,adb handler,
 # 本轮 MTP 不可用。不设 TW_EXCLUDE_DEFAULT_USB_INIT, 保留 AOSP usb rc。
 
-# Hack: prevent anti rollback
-PLATFORM_SECURITY_PATCH := 2099-12-31
-VENDOR_SECURITY_PATCH := 2099-12-31
+# Security patch levels must match the live system's values: the soft
+# keymaster device stamps key blobs with these values and validates them
+# at use time (CheckPatchLevel in android_keymaster.cpp).  The metadata
+# encryption key was created by the live system with 2023-06-01 /
+# 2023-06-05; a mismatch makes begin() demand a key upgrade which is then
+# refused as an OS-version downgrade (ErrorCode -38) and /data cannot be
+# decrypted.  Previously both were 2099-12-31.
+PLATFORM_SECURITY_PATCH := 2023-06-01
+VENDOR_SECURITY_PATCH := 2023-06-05
 PLATFORM_VERSION := 16.1.0
