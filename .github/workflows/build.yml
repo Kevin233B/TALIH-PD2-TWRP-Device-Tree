@@ -44,7 +44,13 @@ jobs:
 
       - name: Sync PBRP source (android-12.1)
         run: |
-          mkdir -p ~/twrpsrc && cd ~/twrpsrc
+          # Put the build tree on the runner's large /mnt volume: the root
+          # disk has only ~14 GB free, which the larger variant trees can
+          # overflow (observed as an instant out-of-disk job kill).
+          sudo mkdir -p /mnt/twrpsrc && sudo chown $USER:$USER /mnt/twrpsrc
+          ln -sfn /mnt/twrpsrc ~/twrpsrc
+          df -h / /mnt | tail -3
+          cd ~/twrpsrc
           ~/bin/repo init --depth=1 -u https://github.com/PitchBlackRecoveryProject/manifest_pb -b android-12.1
           ~/bin/repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
           ls ~/twrpsrc/bootable/recovery/gui/gui.cpp ~/twrpsrc/vendor/pb
@@ -101,8 +107,11 @@ jobs:
           cd ~/twrpsrc
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL=C
+          echo "=== build start ==="; df -h /mnt | tail -2
           . build/envsetup.sh
+          echo "=== envsetup ok ==="
           lunch pb_ls12_mt8797_wifi_64-eng
+          echo "=== lunch ok ==="
           # BOARD_USES_RECOVERY_AS_BOOT: the recoveryimage target is empty and
           # bootimage builds the final TWRP image. The device tree passes the
           # full MTK boot layout (incl. --dtb) via BOARD_MKBOOTIMG_ARGS, so
