@@ -42,11 +42,12 @@ jobs:
           sudo swapon /mnt/swapfile
           free -h
 
-      - name: Sync TWRP source (twrp-12.1)
+      - name: Sync SHRP source (shrp-12.1)
         run: |
           mkdir -p ~/twrpsrc && cd ~/twrpsrc
-          ~/bin/repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
+          ~/bin/repo init --depth=1 -u https://github.com/SHRP/manifest -b shrp-12.1
           ~/bin/repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+          ls ~/twrpsrc/bootable/recovery/gui/gui.cpp ~/twrpsrc/vendor/shrp
         timeout-minutes: 150
 
       - name: Install device tree
@@ -115,7 +116,7 @@ jobs:
           cd ~/twrpsrc
           DT=out/target/product/ls12_mt8797_wifi_64
           ls -la $DT/ | grep -E "boot|ramdisk|recovery"
-          cp $DT/boot.img $GITHUB_WORKSPACE/boot-twrp.img
+          cp $DT/boot.img $GITHUB_WORKSPACE/TALIH-PD2-SHRP-Debug.img
           # 运行中镜像实测布局: header v2 携带真实 dtb_size, MTK DTB 容器
           # (d7b7ab1e 魔数, 与 prebuilt/dtb.img 逐字节一致) 摆在标准 v2 dtb
           # 偏移 page*(1+kernel_pages+ramdisk_pages), dtb_addr=0x47c80000。
@@ -125,7 +126,7 @@ jobs:
           python3 - <<'EOF'
           import os, struct
           ws = os.environ['GITHUB_WORKSPACE']
-          src = os.path.join(ws, 'boot-twrp.img')
+          src = os.path.join(ws, 'TALIH-PD2-SHRP-Debug.img')
           boot = open(src,'rb').read()
           magic = boot[0:8]
           kernel_size = struct.unpack('<I', boot[8:12])[0]
@@ -147,13 +148,13 @@ jobs:
           open(src,'wb').write(out)
           print(f'verified: kernel={kernel_size} ramdisk={ramdisk_size} dtb={dtb_size} total={len(out)}')
           EOF
-          ls -la $GITHUB_WORKSPACE/boot-twrp.img
+          ls -la $GITHUB_WORKSPACE/TALIH-PD2-SHRP-Debug.img
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: twrp-ls12_mt8797_wifi_64
+          name: TALIH-PD2-SHRP-Debug
           path: |
-            boot-twrp.img
+            TALIH-PD2-SHRP-Debug.img
           retention-days: 14
           if-no-files-found: error
