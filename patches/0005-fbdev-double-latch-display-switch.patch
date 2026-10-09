@@ -1,0 +1,31 @@
+diff --git a/minuitwrp/graphics_fbdev.cpp b/minuitwrp/graphics_fbdev.cpp
+index 499e0ea..6a15a45 100644
+--- a/minuitwrp/graphics_fbdev.cpp
++++ b/minuitwrp/graphics_fbdev.cpp
+@@ -101,14 +101,21 @@ static void set_displayed_framebuffer(unsigned n)
+     vi.yres_virtual = gr_framebuffer[0].height * 2;
+     vi.yoffset = n * gr_framebuffer[0].height;
+     vi.bits_per_pixel = gr_framebuffer[0].pixel_bytes * 8;
+-    if (ioctl(fb_fd, FBIOPUT_VSCREENINFO, &vi) < 0) {
+-        perror("active fb swap failed");
+-#ifdef TW_FBIOPAN
+-    } else {
++    // TWRP recovery (ls12_mt8797): this MTK DSI panel can drop a lone
++    // FBIOPUT_VSCREENINFO yoffset switch when it happens after a longer
++    // idle (the boot splash is a static frame for the whole boot), leaving
++    // the screen white until the next display update - the "white flash
++    // between the TWRP splash and the main theme" seen on this device.
++    // Always pair the switch with a real pan and latch it twice so the
++    // next frame is guaranteed to present.
++    for (int latch = 0; latch < 2; latch++) {
++        if (ioctl(fb_fd, FBIOPUT_VSCREENINFO, &vi) < 0) {
++            perror("active fb swap failed");
++            break;
++        }
+         if (ioctl(fb_fd, FBIOPAN_DISPLAY, &vi) < 0) {
+             perror("pan failed");
+         }
+-#endif
+     }
+     displayed_buffer = n;
+ }
