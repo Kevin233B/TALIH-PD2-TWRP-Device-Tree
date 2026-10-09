@@ -22,6 +22,12 @@ on early-init
     mkdir /dev/dri
     mkdir /dev/dri/card0
 
+    # MTK 显示空闲管理（mtk_drm_disp_idlemgr）：idletime 默认 50ms，面板
+    # 无帧更新 50ms 即进入 idle（LFR/LP），本面板 idle 状态显示为白屏；
+    # TWRP 启动时 splash 是静态帧、主题加载 2~3 秒无任何帧更新，正好
+    # 整段白屏（Logo→白屏→首页）。阈值调到极大 = 实际禁用 idle。
+    write /proc/displowpower/idletime 1000000000
+
 on init
     # adb over USB, independent of the GUI. This kernel's legacy gadget
     # interface /sys/class/android_usb/android0 is config-less (state only:
@@ -97,6 +103,9 @@ on boot
     write /proc/sys/kernel/core_pattern "|/sbin/corehead pipe"
 
     start keymaster-4-1
+
+    # 双保险：early-init 若因节点未就绪未写入，这里补一次
+    write /proc/displowpower/idletime 1000000000
 
     # keystore2 is where A12 vold actually performs its FBE/metadata key
     # operations (vold -> keystore2 -> keymaster; both hops block until
