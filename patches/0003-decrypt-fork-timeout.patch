@@ -1,5 +1,5 @@
 diff --git a/partitionmanager.cpp b/partitionmanager.cpp
-index 2766b4c..9b5ec17 100755
+index 64dc254..004ded3 100755
 --- a/partitionmanager.cpp
 +++ b/partitionmanager.cpp
 @@ -34,6 +34,7 @@
@@ -10,12 +10,12 @@ index 2766b4c..9b5ec17 100755
  #include <linux/fs.h>
  #include <sys/mount.h>
  #include <sys/poll.h>
-@@ -596,7 +597,41 @@ void TWPartitionManager::Decrypt_Data() {
+@@ -430,7 +431,41 @@ void TWPartitionManager::Decrypt_Data() {
  			Set_Crypto_Type("file");
  #ifdef TW_INCLUDE_FBE_METADATA_DECRYPT
  #ifdef USE_FSCRYPT
--			if (android::vold::fscrypt_mount_metadata_encrypted(Decrypt_Data->Actual_Block_Device, Decrypt_Data->Mount_Point, false, false, Decrypt_Data->Current_File_System, TWFunc::Path_Exists(additional_fstab) ? additional_fstab : "")) {
-+			// Run the blocking vold metadata decryption in a child process
+-			if (android::vold::fscrypt_mount_metadata_encrypted(Decrypt_Data->Actual_Block_Device, Decrypt_Data->Mount_Point, false, false, Decrypt_Data->Current_File_System)) {
++						// Run the blocking vold metadata decryption in a child process
 +			// and wait up to 120s: the vold -> keystore2 -> keymaster
 +			// chain can block indefinitely if a service fails to come up,
 +			// which would wedge the recovery UI at the splash screen
@@ -24,7 +24,7 @@ index 2766b4c..9b5ec17 100755
 +			bool vold_ok = false;
 +			pid_t dec_pid = fork();
 +			if (dec_pid == 0) {
-+				bool ok = android::vold::fscrypt_mount_metadata_encrypted(Decrypt_Data->Actual_Block_Device, Decrypt_Data->Mount_Point, false, false, Decrypt_Data->Current_File_System, TWFunc::Path_Exists(additional_fstab) ? additional_fstab : "");
++				bool ok = android::vold::fscrypt_mount_metadata_encrypted(Decrypt_Data->Actual_Block_Device, Decrypt_Data->Mount_Point, false, false, Decrypt_Data->Current_File_System, TWFunc::Path_Exists("/etc/additional.fstab.src") ? "/etc/additional.fstab.src" : "");
 +				_exit(ok ? 0 : 1);
 +			}
 +			if (dec_pid > 0) {
