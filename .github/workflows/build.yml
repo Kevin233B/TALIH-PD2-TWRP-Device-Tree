@@ -52,7 +52,17 @@ jobs:
           df -h / /mnt | tail -3
           cd ~/twrpsrc
           ~/bin/repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
-          ~/bin/repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+          # Retry the sync: android.googlesource.com intermittently returns
+          # HTTP 503 during outages, which used to fail the whole build.
+          for attempt in 1 2 3 4 5; do
+            if ~/bin/repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags; then
+              echo "repo sync OK (attempt $attempt)"
+              break
+            fi
+            echo "repo sync failed (attempt $attempt) - retrying in 60s"
+            sleep 60
+            if [ "$attempt" = "5" ]; then exit 1; fi
+          done
         timeout-minutes: 150
 
       - name: Install device tree
