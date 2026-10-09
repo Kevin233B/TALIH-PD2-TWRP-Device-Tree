@@ -45,7 +45,7 @@ jobs:
       - name: Sync SHRP source (shrp-12.1)
         run: |
           mkdir -p ~/twrpsrc && cd ~/twrpsrc
-          ~/bin/repo init --depth=1 -u https://github.com/SHRP/manifest -b shrp-12.1
+          ~/bin/repo init --depth=1 -u https://github.com/SHRP-Reborn/manifest -b shrp-12.1
           ~/bin/repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
           ls ~/twrpsrc/bootable/recovery/gui/gui.cpp ~/twrpsrc/vendor/shrp
         timeout-minutes: 150

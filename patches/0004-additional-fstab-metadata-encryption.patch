@@ -1,0 +1,35 @@
+diff --git a/partitionmanager.cpp b/partitionmanager.cpp
+--- a/partitionmanager.cpp
++++ b/partitionmanager.cpp
+@@ -419,14 +419,29 @@ clear:
+ 
+ #ifndef TW_SKIP_ADDITIONAL_FSTAB
+ 		// Now Fetch the additional fstab
++		bool additional_ready = false;
+ 		if (TWFunc::Find_Fstab(Fstab_Filename)) {
+ 			LOGINFO("Fstab: %s\n", Fstab_Filename.c_str());
+ 			TWFunc::copy_file(Fstab_Filename, additional_fstab, 0600, false);
++			additional_ready = true;
++		} else {
++			LOGINFO("Unable to parse vendor fstab\n");
++		}
++		// The stock MTK vendor fstab omits the metadata_encryption= keyword
++		// that the A12 vold requires for dm-default-key options format v2
++		// (the stock MTK fs_mgr defaults it internally; the AOSP-lineage
++		// vold built into this recovery does not). When a flagged copy is
++		// shipped in the ramdisk, make sure vold and the re-parse below
++		// both see it, no matter where (or whether) the vendor fstab was
++		// found.
++		if (TWFunc::Path_Exists("/etc/additional.fstab.src")) {
++			TWFunc::copy_file("/etc/additional.fstab.src", additional_fstab, 0600, false);
++			additional_ready = true;
++		}
++		if (additional_ready) {
+ 			Fstab_Filename = additional_fstab;
+ 			property_set("fstab.additional", "1");
+ 			goto parse;
+-		} else {
+-			LOGINFO("Unable to parse vendor fstab\n");
+ 		}
+ 	}
+ 	LOGINFO("Done processing fstab files\n");
