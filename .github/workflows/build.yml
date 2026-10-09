@@ -108,7 +108,11 @@ jobs:
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL=C
           echo "=== build start ==="; df -h /mnt | tail -2
-          . build/envsetup.sh
+          # Some variant envsetup.sh forks end with a device-detection
+          # helper that returns 1; under GitHub Actions' `bash -e` that
+          # nonzero status kills the step instantly with no output (seen
+          # on fox_12.1). Tolerate it.
+          . build/envsetup.sh || true
           echo "=== envsetup ok ==="
           lunch twrp_ls12_mt8797_wifi_64-eng
           echo "=== lunch ok ==="
