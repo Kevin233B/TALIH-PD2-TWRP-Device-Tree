@@ -1,5 +1,5 @@
 diff --git a/partitionmanager.cpp b/partitionmanager.cpp
-index 2766b4c..ed90c4d 100755
+index 2766b4c..9b5ec17 100755
 --- a/partitionmanager.cpp
 +++ b/partitionmanager.cpp
 @@ -34,6 +34,7 @@
@@ -10,20 +10,17 @@ index 2766b4c..ed90c4d 100755
  #include <linux/fs.h>
  #include <sys/mount.h>
  #include <sys/poll.h>
-@@ -596,7 +597,49 @@ void TWPartitionManager::Decrypt_Data() {
+@@ -596,7 +597,41 @@ void TWPartitionManager::Decrypt_Data() {
  			Set_Crypto_Type("file");
  #ifdef TW_INCLUDE_FBE_METADATA_DECRYPT
  #ifdef USE_FSCRYPT
 -			if (android::vold::fscrypt_mount_metadata_encrypted(Decrypt_Data->Actual_Block_Device, Decrypt_Data->Mount_Point, false, false, Decrypt_Data->Current_File_System, TWFunc::Path_Exists(additional_fstab) ? additional_fstab : "")) {
-+			// Run the blocking vold metadata decryption in a child process:
-+			// the vold -> keystore2 -> keymaster(4.x) chain ends in a
-+			// blocking wait (AServiceManager_waitForService / HIDL
-+			// getService retry) whenever any link of the chain fails to
-+			// come up, which used to wedge the recovery UI at the
-+			// splash screen forever. Wait up to 120s, probing the stuck child at 60s and just before the kill; on timeout kill the
-+			// child and continue without decryption, and dump the
-+			// diagnostic snapshot (tw_kmsglog.sh dump) so the failure is
-+			// readable from the console ring / misc blob.
++			// Run the blocking vold metadata decryption in a child process
++			// and wait up to 120s: the vold -> keystore2 -> keymaster
++			// chain can block indefinitely if a service fails to come up,
++			// which would wedge the recovery UI at the splash screen
++			// forever. On timeout, kill the child and continue without
++			// decryption.
 +			bool vold_ok = false;
 +			pid_t dec_pid = fork();
 +			if (dec_pid == 0) {
@@ -37,22 +34,17 @@ index 2766b4c..ed90c4d 100755
 +					pid_t dec_r = waitpid(dec_pid, &dec_status, WNOHANG);
 +					if (dec_r != 0)
 +						break;
-+					if (dec_waited == 600)
-+						TWFunc::Exec_Cmd("/system/bin/sh /sbin/twrp-hangprobe.sh " + std::to_string(dec_pid), false);
 +					usleep(100000);
 +					dec_waited++;
 +				}
 +				if (dec_waited >= 1200) {
-+					LOGINFO("Decrypt_Data: metadata decryption timed out after 120s (still blocked in the vold/keymaster/HAL chain); continuing without decryption\n");
-+					TWFunc::Exec_Cmd("/system/bin/sh /sbin/twrp-hangprobe.sh " + std::to_string(dec_pid), false);
++					LOGINFO("Decrypt_Data: metadata decryption timed out after 120s; continuing without decryption\n");
 +					kill(dec_pid, SIGKILL);
 +					waitpid(dec_pid, &dec_status, 0);
-+					TWFunc::Exec_Cmd("/system/bin/sh /sbin/tw_kmsglog.sh dump", false);
 +				} else if (WIFEXITED(dec_status) && WEXITSTATUS(dec_status) == 0) {
 +					vold_ok = true;
 +				} else {
 +					LOGINFO("Decrypt_Data: metadata decryption call failed or was killed; continuing without decryption\n");
-+					TWFunc::Exec_Cmd("/system/bin/sh /sbin/tw_kmsglog.sh dump", false);
 +				}
 +			} else {
 +				LOGINFO("Decrypt_Data: fork failed (%d); continuing without decryption\n", errno);

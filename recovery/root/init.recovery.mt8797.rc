@@ -52,26 +52,6 @@ on init
     wait /dev/dri/card0 10
     rm /dev/dri/card0
 
-    # v10.7 crash forensics (TEMPORARY scaffolding; tear down once /data
-    # decryption works): any fatal-signal coredump (e.g. keystore2's
-    # SIGBUS) is piped by the kernel to /sbin/corehead, which stores the
-    # first 64 KiB of the core (ELF header + notes + per-thread registers)
-    # at misc offset 64 KiB (approved dead zone 64..384 KiB). Pipe dumps
-    # are not subject to RLIMIT_CORE=0 (kernel: "core limits are
-    # irrelevant to pipes"); corehead exits after the cap so the kernel
-    # aborts the remaining dump. Written here in the init stage so it
-    # precedes keystore2's own late-init start. "arm" raises init's core
-    # rlimit as belt-and-suspenders (harmless if it fails).
-    # The packer normalizes sbin/* to mode 644, so restore the exec bit
-    # here; the kernel's coredump pipe helper cannot exec a 644 file.
-    # This kernel builds with CONFIG_STATIC_USERMODEHELPER=y and
-    # STATIC_USERMODEHELPER_PATH=/system_ext/bin/aee_core_forwarder, so
-    # the kernel substitutes that path for any coredump pipe; a
-    # byte-identical copy of corehead is installed there too.
-    chmod 0755 /sbin/corehead
-    chmod 0755 /system_ext/bin/aee_core_forwarder
-    write /proc/sys/kernel/core_pattern "|/sbin/corehead pipe"
-    exec u:r:recovery:s0 root root -- /sbin/corehead arm
 
 on boot
     # Keymaster 4.1 for /data decryption (Round C). The service is the
@@ -92,9 +72,6 @@ on boot
     # vendor rc (class early_hal, user system drmrpc) is not reusable
     # verbatim: this recovery only starts the default class, and the
     # explicit-start + root pattern mirrors hwservicemanager itself.
-    #
-    # v10.7: re-assert the crash forensics pipe (harmless if unchanged).
-    write /proc/sys/kernel/core_pattern "|/sbin/corehead pipe"
 
     start keymaster-4-1
 
@@ -105,14 +82,6 @@ on boot
     # is guaranteed up before the recovery binary reaches Decrypt_Data().
     start keystore2
 
-    # No-PC diagnostics: mirror TWRP's log into the kernel ring so it
-    # survives to /sys/fs/pstore across a warm reboot (TWRP's Reboot ->
-    # System). See sbin/tw_kmsglog.sh (v3). The v2 in-action write
-    # breadcrumbs were dropped: init's kmsg writes all lose the race
-    # with ueventd's /dev/kmsg node creation (init's own service-exit
-    # logging fails the same way — no init line ever reached the v5
-    # pstore capture); tw_kmsglog v3 waits for the node instead.
-    start tw_kmsglog
 
 on fs && property:ro.debuggable=0
     # distinguish USB shoulde connect or not, i.e. CDP vs SDP
@@ -154,17 +123,3 @@ service keymaster-4-1 /system/bin/android.hardware.keymaster@4.1-service
     # the hwservicemanager/boot/health services already run under.
     seclabel u:r:recovery:s0
 
-service tw_kmsglog /system/bin/sh /sbin/tw_kmsglog.sh
-    user root
-    group root
-    disabled
-    oneshot
-    # Mandatory: every service in the packed ramdisk carries a seclabel.
-    # Without one, init (SELinux enabled, even permissive) refuses to
-    # start the service — the context derived from the script file
-    # (u:object_r:rootfs:s0) is a file type, not a process domain, and
-    # v4's start tw_kmsglog was silently refused this way (the error only
-    # reached logd, which dies with the session). u:r:recovery:s0 is the
-    # domain the GUI binary and the boot/health HAL services already run
-    # under in this exact policy.
-    seclabel u:r:recovery:s0
