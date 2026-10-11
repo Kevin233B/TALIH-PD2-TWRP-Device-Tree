@@ -1,0 +1,21 @@
+diff --git a/partitionmanager.cpp b/partitionmanager.cpp
+index 2766b4c..3c4e1d2 100755
+--- a/partitionmanager.cpp
++++ b/partitionmanager.cpp
+@@ -601,6 +601,16 @@ void TWPartitionManager::Decrypt_Data() {
+ 				Decrypt_Data->Decrypted_Block_Device = crypto_blkdev;
+ 				LOGINFO("Successfully decrypted metadata encrypted data partition with new block device: '%s'\n", crypto_blkdev.c_str());
+ #endif
++				// TWRP recovery (ls12_mt8797): repair any f2fs inconsistency on the
++				// decrypted /data while it is still unmounted, before the filesystem
++				// gets mounted and written to. Without this, a dirty fs plus heavy
++				// writeback (e.g. the raw 'super' backup) triggers an f2fs
++				// 'access invalid blkaddr' storm and a kernel panic.
++				std::string crypto_dev = android::base::GetProperty("ro.crypto.fs_crypto_blkdev", "error");
++				if (TWFunc::Path_Exists("/system/bin/fsck.f2fs") && !crypto_dev.empty() && crypto_dev != "error") {
++					int fsck_ret = TWFunc::Exec_Cmd("/system/bin/fsck.f2fs -a " + crypto_dev, false);
++					LOGINFO("Decrypt_Data: fsck.f2fs -a %s -> %d\n", crypto_dev.c_str(), fsck_ret);
++				}
+ 				Decrypt_Data->Is_Decrypted = true; // Needed to make the mount function work correctly
+ 				int retry_count = 10;
+ 				while (!Decrypt_Data->Mount(false) && --retry_count)
